@@ -2,100 +2,133 @@
 This contains all info for the modules to use"""
 
 import sys
+import copy
 
 class Vector():
     """Represents a two dimensional vector"""
-    
-    def __init__(self):
-        """Initializes the vector"""
-        self.x = False
-        self.y = False
         
-    def __init__(self,  x,  y):
-        """Initializes the vector with values"""
-        self.x = x
-        self.y = y
+    def __init__(self, x,  y, name = False,  board = False, owner = False):
+        """Initializes the vector with values.
+        Owner is the owning class, board is the containing board if exists.
+        When a board is specified this vector will automatically update it with its location and will be indicated uniquely by its owner and name.
+        (For example: a vector that the blue robot owns and represents location will have: self.name = 'location', self.owner = blueRobot)"""
+        self.__x = x
+        self.__y = y
+        self.name = name
+        self.board = board
+        self.owner = owner
+        # Initialize the vector on the board
+        if False != self.board:
+            self.board.addItem(x, y, self)
         
     def __eq__(self, other):
-        if self.x == other.x and self.y == other.y:
+        if self.getX() == other.getX() and self.getY() == other.getY():
             return True
         return False
+        
+    def setValue(self, x,  y):
+        """Sets the vector's values"""
+        if False != self.board:
+            self.board.removeItem(self.__x, self.__y,  self)
+            self.board.addItem(x, y, self)
+        self.__x = x
+        self.__y = y
+        
+    def setX(self,  x):
+        """Set x value"""
+        self.setValue(x, self.getY())
+
+    def getX(self):
+        """Returns the robot's x value"""
+        return self.__x
+
+    def setY(self,  y):
+        """Set y value"""
+        self.setValue(self.getX(), y)
+        
+    def getY(self):
+        """Returns the robot's y value"""
+        return self.__y
+        
+
+class Color():
+    """Represents a color vector with lower and upper values
+    The robot's color is a range of colors with the format [(H, S, V) min,(H,S,V) max]"""
+        
+    def __init__(self, lower = False, upper = False):
+        """Initializes the vector with values"""
+        if lower == False or upper == False:
+            self.lower = False
+            self.upper = False
+        else:
+            self.setColor(lower, upper)
+        
+    def setColor(self,  lower,  upper):
+        """Sets the robot's color"""
+        if False == checkRelation(lower, upper):
+            raise Exception("Lower color value is not lower or equal color upper value")
+        self.lower = lower
+        self.upper = upper
+        
+    def checkRelation(lower, upper):
+        """Checks the relation between lower and upper: If lower is indeed lower or equal, returns True"""
+        for l,  u in lower,  upper:
+            if l > u:
+                return False
+        return True
 
 class Robot():
     """This represents a single robot.
     Each of the values defaults to False untill defined"""
-    def __init__(self):
+    
+    def __init__(self,  board):
         """Initializes the robot"""
-        self.location = Vector()
-        self.direction = Vector()
-        self.color = False
+        self.color = Color()
+        self.board = board
+        self.location = Vector(0, 0, 'location', self.board, self)
+        self.direction = Vector(1, 0)
         
-    def setX(self,  x):
-        """Set x value"""
-        self.location.x = x
-
-    def getX(self):
-        """Returns the robot's x value"""
-        return self.location.x
-
-    def setY(self,  y):
-        """Set y value"""
-        self.location.y = y
-        
-    def getY(self):
-        """Returns the robot's y value"""
-        return self.location.y
-        
-    def setLocation(self,  x,  y):
-        """Set the x and y values"""
-        self.location.setX(x)
-        self.location.setY(y)
-        
-    def setLocation(self,  vector):
-        """Set the x and y values by vector value"""
-        self.location.setX(vector.x)
-        self.location.setY(vector.y)
-
-    def getLocation(self):
-        """Returns the location of the robot as a vector"""
-        return Vector(self.location.x, self.location.y)
-        
-    def setDirection(self,  x,  y):
-        """Set direction by x,y values"""
-        self.direction.x = x
-        self.direction.y = y
-        
-    def setDirection(self,  vector):
-        """Set direction by vector value"""
-        self.setDirection(vector.x,  vector.y)
-        
-    def getDirection(self):
-        """Returns the robot's direction as a vector"""
-        return Vector(self.direction.x, self.direction.y)
-        
-    def setColor(self,  color):
+    def setColor(self,  lower,  upper):
         """Sets the robot's color"""
-        self.color = color
+        self.color.setColor(lower, upper)
         
     def getColor(self):
-        """Returns the robot's set color"""
-        return self.color
+        """Returns the robot's color"""
+        return copy.deepcopy(self.color)
         
 class Board():
-    """Represents a game board, defined by resolution"""
+    """Represents a game board, defined by resolution.
+    Every addition and removal of a square's content is done by adding an item or removing an item.
+    A clear square is represented by an empty list."""
     
     def __init__(self,  dimension_x,  dimension_y):
         """Initializes a board with dimensions. 
         Note: if a dimension is 5, the index for it will be 0 to 4."""
-        self.content = dimension_x*[[0]*dimension_y]
+        self.content = dimension_x*[[[]]*dimension_y]
+        self.dimensions = Vector(dimension_x, dimension_y)
     
-    def setContent(self,  vector,  content):
-        """Sets the content of a board square"""
-        self.content[vector.x, vector.y] = content
+    def addItem(self,  x, y,  content):
+        """Adds the content to a board square if not already in there"""
+        if content not in self.content[x][y]:
+            self.content[x][y].append(content)
+
+    def removeItem(self,  x, y,  content):
+        """Removes the content from a board square if it exists"""
+        if content in self.content[x][y]:
+            self.content[x][y].remove(content)
+
+    def setContent(self,  x, y,  content):
+        """Sets the content of a board square.
+        Note: This should not be called as it overrides previous content! use addItem instead!"""
+        self.content[x][y] = content
         
-    def getContent(self,  vector):
-        """Gets the content of a board square"""
-        return self.content[vector.x, vector.y]
+    def getItems(self,  x, y):
+        """Gets a list of items in a board square"""
+        return copy.deepcopy(self.content[x][y])
+        
+    def getDimensions(self):
+        """Gets the vector representing the dimensions"""
+        return copy.deepcopy(self.dimensions)
         
 class Screen():
     """The screen projected by the projector"""
@@ -104,9 +137,9 @@ class Screen():
 class CentralClass():
     """The central class contains all info for modules"""
     def __init__(self, board_x,  board_y):
-        self.robots = []
         self.board = Board(board_x, board_y)
         self.screen = Screen()
+        self.robots = [Robot(self.board)]
     
 def main():
     """Main method - creates all threads"""
