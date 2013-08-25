@@ -3,6 +3,15 @@ This contains all info for the modules to use"""
 
 import sys
 import copy
+import numpy as np
+import cv2
+import cv2.cv as cv
+
+COLOR_DICT = {  'yellow'   : (np.array([10, 100, 100],np.uint8), np.array([40, 255, 255],np.uint8)),
+        'red'    : (np.array([165, 145, 100],np.uint8),np.array([250, 210, 160],np.uint8)),
+        'blue'    : (np.array([100, 70, 50],np.uint8), np.array([130, 255, 255],np.uint8)),
+        'green'    : (np.array([40, 80, 30],np.uint8), np.array([70, 255, 255],np.uint8))
+        }
 
 class Vector():
     """Represents a two dimensional vector"""
@@ -57,7 +66,7 @@ class Color():
         
     def __init__(self, lower = False, upper = False):
         """Initializes the vector with values"""
-        if lower == False or upper == False:
+        if (bool == type(lower) and lower == False) or (bool == type(upper) and upper == False):
             self.lower = False
             self.upper = False
         else:
@@ -65,14 +74,18 @@ class Color():
         
     def setColor(self,  lower,  upper):
         """Sets the robot's color"""
-        if False == checkRelation(lower, upper):
+        if False == self.checkRelation(lower, upper):
             raise Exception("Lower color value is not lower or equal color upper value")
         self.lower = lower
         self.upper = upper
         
-    def checkRelation(lower, upper):
+    def getColor(self):
+        """Gets the color"""
+        return (self.lower,  self.upper)
+        
+    def checkRelation(self, lower, upper):
         """Checks the relation between lower and upper: If lower is indeed lower or equal, returns True"""
-        for l,  u in lower,  upper:
+        for l,  u in zip(lower,  upper):
             if l > u:
                 return False
         return True
@@ -87,14 +100,6 @@ class Robot():
         self.board = board
         self.location = Vector(0, 0, 'location', self.board, self)
         self.direction = Vector(1, 0)
-        
-    def setColor(self,  lower,  upper):
-        """Sets the robot's color"""
-        self.color.setColor(lower, upper)
-        
-    def getColor(self):
-        """Returns the robot's color"""
-        return copy.deepcopy(self.color)
         
 class Board():
     """Represents a game board, defined by resolution.
