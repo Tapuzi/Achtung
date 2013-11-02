@@ -75,15 +75,14 @@ class Player:
 
     def _move(self):
         assert DEBUG
-        if self.alive:
-            ROTATION_DEGREES = 3.0
-            SPEED = 1.5
-            if self.direction == LEFT:
-                self.directionVector.rotate(-ROTATION_DEGREES)
-            elif self.direction == RIGHT:
-                self.directionVector.rotate(ROTATION_DEGREES)
+        ROTATION_DEGREES = 3.0
+        SPEED = 1.5
+        if self.direction == LEFT:
+            self.directionVector.rotate(-ROTATION_DEGREES)
+        elif self.direction == RIGHT:
+            self.directionVector.rotate(ROTATION_DEGREES)
 
-            self.position += (self.directionVector * SPEED)
+        self.position += (self.directionVector * SPEED)
 
     def getRobotPositionFromCamera(self):
         """Get Position from camera via opencv. Throw RobotNotFoundError if robot not found."""
@@ -153,7 +152,8 @@ class Game:
                     pygame.quit()
                     exit()
 
-            for player in self.players:
+            players_alive = [player for player in self.players if player.alive]
+            for player in players_alive:
                 try:
                     player.updatePosition()
                 except RobotNotFoundError:
@@ -165,7 +165,7 @@ class Game:
                 player.trail.draw()
             self.updateDisplay()
 
-            for player in self.players:
+            for player in players_alive:
                 if self.playerColidesWithWalls(player):
                     player.die()
 
@@ -185,7 +185,7 @@ class Game:
 ##                    break
 
             if DEBUG:
-                for player in self.players:
+                for player in players_alive:
                     player._move()
 
             self.tick()
