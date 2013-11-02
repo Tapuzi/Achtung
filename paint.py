@@ -83,16 +83,25 @@ def main():
     drawColor = (0, 0, 0)
     lineWidth = 3
 
+    prev = None
     while keepGoing:
         clock.tick(30)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 keepGoing = False
+##            elif event.type == pygame.MOUSEBUTTONDOWN:
+##                point = pygame.mouse.get_pos()
+##                if prev:
+##                    background.fill((255, 255, 255))
+##                    drawSmoothLine(background, drawColor, prev, point, 5)
+##                    prev = None
+##                else:
+##                    prev = point
             elif event.type == pygame.MOUSEMOTION:
                 lineEnd = pygame.mouse.get_pos()
                 if pygame.mouse.get_pressed() == (1, 0, 0):
-                    pygame.draw.line(background, drawColor, lineStart, lineEnd, lineWidth)
+                    drawSmoothLine(background, drawColor, lineStart, lineEnd, lineWidth)
                 lineStart = lineEnd
             elif event.type == pygame.KEYDOWN:
                 myData = (event, background, drawColor, lineWidth, keepGoing)
@@ -102,6 +111,33 @@ def main():
         myLabel = showStats(drawColor, lineWidth)
         screen.blit(myLabel, (450, 450))
         pygame.display.flip()
+
+    pygame.quit()
+
+def drawSmoothLine(surface, color, start, end, width):
+    pygame.draw.line(surface, color, start, end, width)
+
+    start_x, start_y = start
+    end_x, end_y = end
+
+    #pygame.draw.line(surface, color, (start_x + 50, start_y), (end_x + 50, end_y), width)
+
+    delta_x = end_x - start_x
+    delta_y = end_y - start_y
+
+    if delta_x == 0 or delta_y == 0:
+        return
+
+    slope = abs(float(delta_y) / delta_x)
+
+    half_width = width / 2.0
+    if slope < 1:
+        pygame.draw.aaline(surface, color, (start_x, start_y - half_width), (end_x, end_y - half_width))
+        pygame.draw.aaline(surface, color, (start_x, start_y + half_width), (end_x, end_y + half_width))
+    else:
+        pygame.draw.aaline(surface, color, (start_x - half_width, start_y), (end_x - half_width, end_y))
+        pygame.draw.aaline(surface, color, (start_x + half_width, start_y), (end_x + half_width, end_y))
+
 
 if __name__ == "__main__":
     main()
