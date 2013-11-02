@@ -44,16 +44,20 @@ class RobotNotFoundError(Exception):
 
 class Trail:
     def __init__(self, surface, color):
-        self.surface = surface
+        self.game_surface = surface
+        self.surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
         self.color = color
-        self.trail = []
+        self.previous_point = None
+
 
     def addPoint(self, point):
-        self.trail.append(point)
+        if self.previous_point is not None:
+            pygame.draw.line(self.surface, self.color.value, self.previous_point, point, ROBOT_RADIUS)
+        self.previous_point = point
+
 
     def draw(self):
-        if len(self.trail) > 1:
-            pygame.draw.lines(self.surface, self.color.value, False, self.trail, ROBOT_RADIUS)
+        self.game_surface.blit(self.surface, (0,0))
 
 class Player:
     def __init__(self, surface, color):
@@ -132,12 +136,9 @@ class Player:
         pass
 
 class Game:
-    def __init__(self, width, hight):
-        self.width = width
-        self.hight = hight
-
+    def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((width, hight))
+        self.screen = pygame.display.set_mode((GAME_WIDTH, GAME_HIGHT))
         self.surface = pygame.Surface(self.screen.get_size())
         self.clock = pygame.time.Clock()
 
@@ -147,6 +148,7 @@ class Game:
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
+                    pygame.quit()
                     exit()
 
             for player in self.players:
@@ -214,7 +216,7 @@ class Game:
         pygame.display.set_caption("FPS: %f" % current_fps)
 
 def main():
-    game = Game(GAME_WIDTH, GAME_HIGHT)
+    game = Game()
     game.start()
 
 if "__main__" == __name__:
