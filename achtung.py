@@ -52,11 +52,8 @@ class Trail:
         self.trail.append(point)
 
     def draw(self):
-        #print self.trail
-        previous_point = self.trail[0]
-        for point in self.trail[1:]:
-            pygame.draw.line(self.surface, self.color.value, previous_point, point, ROBOT_RADIUS)
-            previous_point = point
+        if len(self.trail) > 1:
+            pygame.draw.lines(self.surface, self.color.value, False, self.trail, ROBOT_RADIUS)
 
 class Player:
     def __init__(self, surface, color):
@@ -73,7 +70,7 @@ class Player:
 
     def _move(self):
         assert DEBUG
-        ROTATION_DEGREES = 3
+        ROTATION_DEGREES = 3.0
         SPEED = 1.5
         if self.direction == LEFT:
             self.directionVector.rotate(-ROTATION_DEGREES)
@@ -213,6 +210,8 @@ class Game:
     def tick(self):
         """Wait for the next game tick"""
         self.clock.tick(FPS_LIMIT)
+        current_fps = self.clock.get_fps()
+        pygame.display.set_caption("FPS: %f" % current_fps)
 
 def main():
     game = Game(GAME_WIDTH, GAME_HIGHT)
