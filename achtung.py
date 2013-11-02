@@ -51,9 +51,11 @@ class Trail:
         self.previous_point = None
 
     def addPoint(self, point):
-        if self.previous_point is not None:
-            pygame.draw.line(self.surface, self.color.value, self.previous_point, point, ROBOT_RADIUS)
-        self.previous_point = point
+        int_point = (int(point.x), int(point.y))
+        pygame.draw.circle(self.surface, self.color.value, int_point, ROBOT_RADIUS)
+##        if self.previous_point is not None:
+##            pygame.draw.line(self.surface, self.color.value, self.previous_point, point, ROBOT_RADIUS)
+##        self.previous_point = point
 
     def draw(self):
         self.game_surface.blit(self.surface, (0,0))
