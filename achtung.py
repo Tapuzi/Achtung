@@ -28,7 +28,8 @@ LEFT = -1
 STRAIGHT = 0
 RIGHT = 1
 
-ROBOT_RADIUS = 5
+ROBOT_RADIUS = 7
+COLLISTION_RADIUS = ROBOT_RADIUS - 2
 
 GAME_WIDTH = 500
 GAME_HIGHT = 500
@@ -49,12 +50,10 @@ class Trail:
         self.color = color
         self.previous_point = None
 
-
     def addPoint(self, point):
         if self.previous_point is not None:
             pygame.draw.line(self.surface, self.color.value, self.previous_point, point, ROBOT_RADIUS)
         self.previous_point = point
-
 
     def draw(self):
         self.game_surface.blit(self.surface, (0,0))
@@ -74,14 +73,15 @@ class Player:
 
     def _move(self):
         assert DEBUG
-        ROTATION_DEGREES = 3.0
-        SPEED = 1.5
-        if self.direction == LEFT:
-            self.directionVector.rotate(-ROTATION_DEGREES)
-        elif self.direction == RIGHT:
-            self.directionVector.rotate(ROTATION_DEGREES)
+        if self.alive:
+            ROTATION_DEGREES = 3.0
+            SPEED = 1.5
+            if self.direction == LEFT:
+                self.directionVector.rotate(-ROTATION_DEGREES)
+            elif self.direction == RIGHT:
+                self.directionVector.rotate(ROTATION_DEGREES)
 
-        self.position += (self.directionVector * SPEED)
+            self.position += (self.directionVector * SPEED)
 
     def getRobotPositionFromCamera(self):
         """Get Position from camera via opencv. Throw RobotNotFoundError if robot not found."""
@@ -163,9 +163,10 @@ class Game:
                 player.trail.draw()
             self.updateDisplay()
 
-##            for robot in robots:
-##                #TODO: check robot colision with walls
-##
+            for player in self.players:
+                if self.playerColidesWithWalls(player):
+                    player.die()
+
 ##                for trail in (robot.trail for robot in robots):
 ##                    if self.robotColidesWithTrail(robot, trail):
 ##                        robot.die()
@@ -203,11 +204,17 @@ class Game:
         self.screen.blit(self.surface, (0, 0))
         pygame.display.flip()
 
-##    def robotColidesWithWalls(self, robot):
-##        pass
-##
-##    def robotColidesWithTrail(self, robot, trail):
-##        pass
+    def playerColidesWithWalls(self, player):
+        x, y = player.position
+        left_wall_collision = x - COLLISTION_RADIUS <= 0
+        top_wall_collision = y - COLLISTION_RADIUS <= 0
+        right_wall_collision = x + COLLISTION_RADIUS >= GAME_WIDTH
+        bottom_wall_collision = y + COLLISTION_RADIUS >= GAME_HIGHT
+        any_wall_collision = left_wall_collision or top_wall_collision or right_wall_collision or bottom_wall_collision
+        return any_wall_collision
+
+    def playerColidesWithTrail(self, player, trail):
+        pass
 
     def tick(self):
         """Wait for the next game tick"""
