@@ -164,11 +164,17 @@ class Game:
 
         self.players = [Player(self.surface, color) for color in COLORS]
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        pygame.quit()
+
     def start(self):
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    pygame.quit()
+
                     exit()
 
             players_alive = [player for player in self.players if player.alive]
@@ -177,6 +183,7 @@ class Game:
                     player.updatePosition()
                 except RobotNotFoundError:
                     player.die()
+                    players_alive.remove(player)
                 player.updateDirection()
 
             self.clearSurface()
@@ -192,17 +199,18 @@ class Game:
                 for trail in (player.trail for player in self.players):
                     if self.playerColidesWithTrail(player, trail):
                         player.die()
-##
-##            # Check end conditions
-##            living_robots = [robot for robot in robots if robot.alive]
-##            if len(living_robots) == 0:
-##                end_state = 'draw'
-##                break
-##            elif len(living_robots) == 1:
-##                end_state = 'win'
-##                winner = living_robots[0]
-##                if not DEBUG:
-##                    break
+            players_alive = [player for player in self.players if player.alive]
+
+
+            # Check end conditions
+            if len(players_alive) == 0:
+                end_state = 'draw'
+                break
+            elif len(players_alive) == 1:
+                end_state = 'win'
+                winner = players_alive[0]
+                if not DEBUG:
+                    break
 
             if DEBUG:
                 for player in players_alive:
@@ -238,8 +246,6 @@ class Game:
     def playerColidesWithTrail(self, player, trail):
         player_mask = pygame.mask.from_surface(player.surface)
         trail_mask = pygame.mask.from_surface(trail.surface)
-        #last_point_mask = pygame.mask.from_surface(trail.last_point_surface)
-        #trail_mask.erase(last_point_mask, (0, 0))
 
         overlapping_pixels = trail_mask.overlap_area(player_mask, (0, 0))
         if overlapping_pixels > OVERLAP_COLLISION_THRESHOLD:
@@ -254,8 +260,8 @@ class Game:
         pygame.display.set_caption("FPS: %f" % current_fps)
 
 def main():
-    game = Game()
-    game.start()
+    with Game() as game:
+        game.start()
 
 if "__main__" == __name__:
     main()
