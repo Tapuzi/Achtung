@@ -6,13 +6,37 @@ from collections import namedtuple
 from vec2d import Vec2d
 import uberclock02 as uberclock
 
+##
+## TODO:
+##     - Implement holes in trails
+##     - Add sounds (start, player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
+##     - Add full screen support (with black stripes...)
+##     - Add rounds and scores
+##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
+##       or try using http://pygamedraw.wordpress.com/ for trail drawing.
+##     - Add a mode in between round that allows to drive robots back to the middle of the board?
+##     - Add bonuses (speed up/down, control reverse, players swap, electrify etc...)
+##
+
 #
 # Constants
 #
 
 DEBUG = True
 
-Color = namedtuple('Color', ['name', 'value', 'valueRange'])
+# Set to false to debug with watch controllers
+DEBUG_KEYBOARD = False
+
+DEBUG_KEYBOARD_TWO_PLAYERS = False
+
+DEBUG_MOUSE = True
+
+DEBUG_SINGLE_PLAYER = DEBUG and not DEBUG_KEYBOARD_TWO_PLAYERS
+
+#####
+
+
+Color = namedtuple('Color', ['name', 'value', 'value_range'])
 
 # TODO: set value range for openCV
 COLORS = [
@@ -24,9 +48,7 @@ COLORS = [
 ]
 
 IDS = ['1337' for color in COLORS]
-
-if DEBUG:
-    COLORS = [COLORS[0]]
+COMPORTS = ['COM10']
 
 LEFT = -1
 STRAIGHT = 0
@@ -41,8 +63,6 @@ GAME_HIGHT = 500
 FPS_LIMIT = 60
 
 OVERLAP_COLLISION_THRESHOLD = 10
-
-COMPORTS = ['COM10']
 
 #
 # Classes
@@ -74,7 +94,77 @@ class Trail:
     def draw(self):
         self.game_surface.blit(self.surface, (0, 0))
 
-class ControllerWatch:
+class Controller:
+    """Abstract base class for controllers"""
+    def getDirection(self):
+        raise NotImplementedError()
+
+class MouseController(Controller):
+    def __init__(self):
+        pass
+
+    def getDirection(self):
+        pressed_keys = pygame.mouse.get_pressed()
+
+        left_pressed = pressed_keys[0]
+        right_pressed = pressed_keys[2]
+
+        if left_pressed and not right_pressed:
+            direction = LEFT
+        elif not left_pressed and right_pressed:
+            direction = RIGHT
+        elif not left_pressed and not right_pressed:
+            direction = STRAIGHT
+        elif left_pressed and right_pressed:
+            direction = STRAIGHT
+        else:
+            raise Exception('wtf')
+
+        return direction
+
+class GamepadController(Controller):
+    # TODO: Implement if we want to add support, in case multiple Watches don't work well.
+    def __init__(self):
+        pass
+
+    def getDirection(self):
+        pass
+
+class TrackpadController(Controller):
+    # TODO: If we get really desperate about controllers,
+    #       we could implement a controller from the laptop's trackpad
+    #       by assigning the left side of it to LEFT and right side to RIGHT.
+    def __init__(self):
+        pass
+
+    def getDirection(self):
+        pass
+
+class KeyboardController(Controller):
+    def __init__(self, left_key, right_key):
+        self.left_key = left_key
+        self.right_key = right_key
+
+    def getDirection(self):
+        pressed_keys = pygame.key.get_pressed()
+
+        left_pressed = pressed_keys[self.left_key]
+        right_pressed = pressed_keys[self.right_key]
+
+        if left_pressed and not right_pressed:
+            direction = LEFT
+        elif not left_pressed and right_pressed:
+            direction = RIGHT
+        elif not left_pressed and not right_pressed:
+            direction = STRAIGHT
+        elif left_pressed and right_pressed:
+            direction = STRAIGHT
+        else:
+            raise Exception('wtf')
+
+        return direction
+
+class WatchController(Controller):
     def __init__(self, comPort, deviceId):
         self.deviceId = deviceId
         self.lastMessage = {'buttons': 0, 'temp': 0, 'accel_z': 0, 'accel_x': 0, 'accel_y': 0, 'alt': 0}
@@ -89,36 +179,39 @@ class ControllerWatch:
             self.device_connection.connect_to_device() # NOTE: Blocking!
         except KeyboardInterrupt:
             raise Exception("No controller")
-            
-            
+
+
     def getState(self):
         # Make sure device is connected
         if not self.device_connection.is_device_connected():
             raise Exception("Device Disconnected: %s" % deviceId)
-        
+
         # Get the latest state
         messages = self.device_connection.receive()
-        
+
         if None == messages:
             return self.lastMessage
-        
+
         self.lastMessage = messages[-1]
         return self.lastMessage
-        
+
     def getOrientation(self):
         state = self.getState()
         print state
         if 20 > state['accel_x'] > 3:
             return LEFT
-            
+
         if 238 < state['accel_x'] < 255:
             return RIGHT
-            
+
         return STRAIGHT
-        
-        
+
+    def getDirection(self):
+        return self.getOrientation()
+
+
 class Player:
-    def __init__(self, game_surface, color, controller_id):
+    def __init__(self, game_surface, color, controller):
         self.game_surface = game_surface
         self.surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
         self.color = color
@@ -126,28 +219,22 @@ class Player:
         self.direction = None
         self.position = None
         self.trail = Trail(self.game_surface, color)
-        # Init controller
-        if len(COMPORTS) > 0:
-            self.com_port = COMPORTS.pop()
-        else:
-            raise Exception("No com port available!")
-            
-        self.controller = ControllerWatch(self.com_port, controller_id)
+        self.controller = controller
 
         if DEBUG:
             self.position = Vec2d(GAME_WIDTH / 2, GAME_HIGHT / 2)
-            self.directionVector = Vec2d(1, 0)
+            self.direction_vector = Vec2d(1, 0)
 
     def _move(self):
         assert DEBUG
         ROTATION_DEGREES = 3.0
-        SPEED = 1
+        SPEED = 2
         if self.direction == LEFT:
-            self.directionVector.rotate(-ROTATION_DEGREES)
+            self.direction_vector.rotate(-ROTATION_DEGREES)
         elif self.direction == RIGHT:
-            self.directionVector.rotate(ROTATION_DEGREES)
+            self.direction_vector.rotate(ROTATION_DEGREES)
 
-        self.position += (self.directionVector * SPEED)
+        self.position += (self.direction_vector * SPEED)
 
     def draw(self):
         self.game_surface.blit(self.surface, (0,0))
@@ -168,31 +255,8 @@ class Player:
         pygame.draw.circle(self.surface, color, int_position, ROBOT_RADIUS)
         self.trail.addPoint(Vec2d(self.position))
 
-    def getDirectionFromController(self):
-        """Get direction from watch controller"""
-        return self.controller.getOrientation()
-        
-        
-    def getDirectionFromKeyboard(self):
-        """Get directions from keyboard for debug purposes"""
-        if DEBUG:
-            pressed_keys = pygame.key.get_pressed()
-            left_pressed = pressed_keys[pygame.K_LEFT]
-            right_pressed = pressed_keys[pygame.K_RIGHT]
-            if left_pressed and not right_pressed:
-                direction = LEFT
-            elif not left_pressed and right_pressed:
-                direction = RIGHT
-            elif not left_pressed and not right_pressed:
-                direction = STRAIGHT
-            elif left_pressed and right_pressed:
-                direction = STRAIGHT
-            else:
-                raise Exception('wtf')
-            return direction
-
     def updateDirection(self):
-        self.direction = self.getDirectionFromController()
+        self.direction = self.controller.getDirection()
         self.sendDirectionToRobot()
 
     def die(self):
@@ -223,7 +287,19 @@ class Game:
         self.surface = pygame.Surface(self.screen.get_size())
         self.clock = pygame.time.Clock()
 
-        self.players = [Player(self.surface, color, id) for color, id in zip(COLORS, IDS)]
+        if DEBUG_KEYBOARD:
+            self.controllers = [KeyboardController(pygame.K_LEFT, pygame.K_RIGHT)]
+            if DEBUG_KEYBOARD_TWO_PLAYERS:
+                self.controllers.append(KeyboardController(pygame.K_z, pygame.K_c))
+        elif DEBUG_MOUSE:
+            self.controllers = [MouseController()]
+        else:
+            self.controllers = [WatchController(port, id) for port, id in zip(COMPORTS, IDS)]
+
+        self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, self.controllers)]
+
+        if DEBUG_KEYBOARD_TWO_PLAYERS:
+            self.players[1].position.y -= 100
 
     def __enter__(self):
         return self
@@ -235,7 +311,6 @@ class Game:
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-
                     exit()
 
             players_alive = [player for player in self.players if player.alive]
@@ -270,7 +345,7 @@ class Game:
             elif len(players_alive) == 1:
                 end_state = 'win'
                 winner = players_alive[0]
-                if not DEBUG:
+                if not DEBUG_SINGLE_PLAYER:
                     break
 
             if DEBUG:
@@ -282,7 +357,7 @@ class Game:
         if end_state == 'draw':
             message = 'Draw.'
         elif end_state == 'win':
-            message = 'The winner is %s!' % winner.color.name
+            message = '%s is he Winner!' % winner.color.name
         else:
             message = 'WTF?'
 
@@ -296,8 +371,6 @@ class Game:
         pygame.display.flip()
 
     def playerColidesWithWalls(self, player):
-        if DEBUG:
-            return False
         x, y = player.position
         left_wall_collision = x - COLLISTION_RADIUS <= 0
         top_wall_collision = y - COLLISTION_RADIUS <= 0
@@ -307,8 +380,6 @@ class Game:
         return any_wall_collision
 
     def playerColidesWithTrail(self, player, trail):
-        if DEBUG:
-            return False
         player_mask = pygame.mask.from_surface(player.surface)
         trail_mask = pygame.mask.from_surface(trail.surface)
 
