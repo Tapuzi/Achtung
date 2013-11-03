@@ -5,6 +5,7 @@ import pygame
 from collections import namedtuple
 from vec2d import Vec2d
 import uberclock02 as uberclock
+import random
 
 ##
 ## TODO:
@@ -25,11 +26,11 @@ import uberclock02 as uberclock
 DEBUG = True
 
 # Set to false to debug with watch controllers
-DEBUG_KEYBOARD = False
+DEBUG_KEYBOARD = True
 
 DEBUG_KEYBOARD_TWO_PLAYERS = False
 
-DEBUG_MOUSE = True
+DEBUG_MOUSE = False
 
 DEBUG_SINGLE_PLAYER = DEBUG and not DEBUG_KEYBOARD_TWO_PLAYERS
 
@@ -63,6 +64,10 @@ GAME_HIGHT = 500
 FPS_LIMIT = 60
 
 OVERLAP_COLLISION_THRESHOLD = 10
+
+TIME_TO_HOLE_MIN = 1.5 * 1000
+TIME_TO_HOLE_MAX = 3 * 1000
+HOLE_TIME_INTERVAL = 0.3 * 1000
 
 #
 # Classes
@@ -130,9 +135,9 @@ class GamepadController(Controller):
     def getDirection(self):
         pass
 
-class TrackpadController(Controller):
+class TouchpadController(Controller):
     # TODO: If we get really desperate about controllers,
-    #       we could implement a controller from the laptop's trackpad
+    #       we could implement a controller from the laptop's touchpad
     #       by assigning the left side of it to LEFT and right side to RIGHT.
     def __init__(self):
         pass
@@ -221,9 +226,44 @@ class Player:
         self.trail = Trail(self.game_surface, color)
         self.controller = controller
 
+        self._time_of_next_hole = None
+        self.resetTimeOfNextHole()
+
+        self._time_of_hole_end = None
+        self.resetTimeOfHoleEnd()
+
+        self._creating_hole = False
+        self.creatingHole()
+
+
         if DEBUG:
             self.position = Vec2d(GAME_WIDTH / 2, GAME_HIGHT / 2)
             self.direction_vector = Vec2d(1, 0)
+
+    def resetTimeOfNextHole(self):
+        current_time = pygame.time.get_ticks()
+        time_to_next_hole = random.uniform(TIME_TO_HOLE_MIN, TIME_TO_HOLE_MAX)
+        self._time_of_next_hole = current_time + time_to_next_hole
+
+    def resetTimeOfHoleEnd(self):
+        current_time = pygame.time.get_ticks()
+        self._time_of_hole_end = current_time + HOLE_TIME_INTERVAL
+
+    def creatingHole(self):
+        """Return True/False whether the player is creating a hole right now or not"""
+        current_time = pygame.time.get_ticks()
+
+        if self._creating_hole:
+            if current_time >= self._time_of_hole_end:
+                self._creating_hole = False
+                self.resetTimeOfNextHole()
+        else:
+            if current_time >= self._time_of_next_hole:
+                self._creating_hole = True
+                self.resetTimeOfHoleEnd()
+
+        return self._creating_hole
+
 
     def _move(self):
         assert DEBUG
@@ -253,7 +293,8 @@ class Player:
         else:
             color = self.color.value
         pygame.draw.circle(self.surface, color, int_position, ROBOT_RADIUS)
-        self.trail.addPoint(Vec2d(self.position))
+        if not self.creatingHole():
+            self.trail.addPoint(Vec2d(self.position))
 
     def updateDirection(self):
         self.direction = self.controller.getDirection()
