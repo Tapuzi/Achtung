@@ -71,8 +71,8 @@ FPS_LIMIT = 60
 
 OVERLAP_COLLISION_THRESHOLD = 10
 
-TIME_TO_HOLE_MIN = 1.5 * 1000
-TIME_TO_HOLE_MAX = 3 * 1000
+TIME_TO_HOLE_MIN = 1.25 * 1000
+TIME_TO_HOLE_MAX = 1.75 * 1000
 HOLE_TIME_INTERVAL = 0.3 * 1000
 
 #
@@ -101,6 +101,16 @@ class Trail:
         self.last_point = point
         self.last_point_surface.fill((0, 0, 0, 0))
         pygame.draw.circle(self.last_point_surface, self.color.value, int_point, ROBOT_RADIUS)
+
+    def addInvisiblePoint(self, point):
+        int_point = (int(point.x), int(point.y))
+        last_point_int = (int(self.last_point.x), int(self.last_point.y))
+
+        self.last_point_surface.fill((0, 0, 0, 0))
+        pygame.draw.circle(self.last_point_surface, self.color.value, last_point_int, ROBOT_RADIUS)
+
+        pygame.draw.circle(self.last_point_surface, (0, 0, 0, 0), int_point, ROBOT_RADIUS)
+        self.surface.blit(self.last_point_surface, (0, 0))
 
     def draw(self):
         self.game_surface.blit(self.surface, (0, 0))
@@ -239,6 +249,7 @@ class Player:
         self.resetTimeOfHoleEnd()
 
         self._creating_hole = False
+        # Reset timers
         self.creatingHole()
 
 
@@ -299,7 +310,9 @@ class Player:
         else:
             color = self.color.value
         pygame.draw.circle(self.surface, color, int_position, ROBOT_RADIUS)
-        if not self.creatingHole():
+        if self.creatingHole():
+           self.trail.addInvisiblePoint(Vec2d(self.position))
+        else:
             self.trail.addPoint(Vec2d(self.position))
 
     def updateDirection(self):
