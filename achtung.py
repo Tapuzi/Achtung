@@ -4,6 +4,7 @@ Achtung!
 import pygame
 from collections import namedtuple
 from vec2d import Vec2d
+import uberclock02 as uberclock
 
 #
 # Constants
@@ -21,6 +22,9 @@ COLORS = [
     Color('Blue', (0, 0, 255), None),
     Color('Yellow', (255, 255, 0), None),
 ]
+
+IDS = ['1337' for color in COLORS]
+
 if DEBUG:
     COLORS = [COLORS[0]]
 
@@ -37,6 +41,8 @@ GAME_HIGHT = 500
 FPS_LIMIT = 60
 
 OVERLAP_COLLISION_THRESHOLD = 10
+
+COMPORTS = ['COM10']
 
 #
 # Classes
@@ -68,8 +74,51 @@ class Trail:
     def draw(self):
         self.game_surface.blit(self.surface, (0, 0))
 
+class ControllerWatch:
+    def __init__(self, comPort, deviceId):
+        self.deviceId = deviceId
+        self.lastMessage = {'buttons': 0, 'temp': 0, 'accel_z': 0, 'accel_x': 0, 'accel_y': 0, 'alt': 0}
+        # Connect to the watch
+        self.ap_socket = uberclock.accessPointSocket(comPort)
+        # Turn on watch
+        self.ap_socket.start()
+        # Create a device connection object and link it to the watch socket
+        self.device_connection = uberclock.deviceConnection(self.ap_socket, deviceId)
+        try:
+            print "Waiting for connection of id %s..." % deviceId
+            self.device_connection.connect_to_device() # NOTE: Blocking!
+        except KeyboardInterrupt:
+            raise Exception("No controller")
+            
+            
+    def getState(self):
+        # Make sure device is connected
+        if not self.device_connection.is_device_connected():
+            raise Exception("Device Disconnected: %s" % deviceId)
+        
+        # Get the latest state
+        messages = self.device_connection.receive()
+        
+        if None == messages:
+            return self.lastMessage
+        
+        self.lastMessage = messages[-1]
+        return self.lastMessage
+        
+    def getOrientation(self):
+        state = self.getState()
+        print state
+        if 20 > state['accel_x'] > 3:
+            return LEFT
+            
+        if 238 < state['accel_x'] < 255:
+            return RIGHT
+            
+        return STRAIGHT
+        
+        
 class Player:
-    def __init__(self, game_surface, color):
+    def __init__(self, game_surface, color, controller_id):
         self.game_surface = game_surface
         self.surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
         self.color = color
@@ -77,6 +126,13 @@ class Player:
         self.direction = None
         self.position = None
         self.trail = Trail(self.game_surface, color)
+        # Init controller
+        if len(COMPORTS) > 0:
+            self.com_port = COMPORTS.pop()
+        else:
+            raise Exception("No com port available!")
+            
+        self.controller = ControllerWatch(self.com_port, controller_id)
 
         if DEBUG:
             self.position = Vec2d(GAME_WIDTH / 2, GAME_HIGHT / 2)
@@ -85,7 +141,7 @@ class Player:
     def _move(self):
         assert DEBUG
         ROTATION_DEGREES = 3.0
-        SPEED = 2
+        SPEED = 1
         if self.direction == LEFT:
             self.directionVector.rotate(-ROTATION_DEGREES)
         elif self.direction == RIGHT:
@@ -114,6 +170,11 @@ class Player:
 
     def getDirectionFromController(self):
         """Get direction from watch controller"""
+        return self.controller.getOrientation()
+        
+        
+    def getDirectionFromKeyboard(self):
+        """Get directions from keyboard for debug purposes"""
         if DEBUG:
             pressed_keys = pygame.key.get_pressed()
             left_pressed = pressed_keys[pygame.K_LEFT]
@@ -162,7 +223,7 @@ class Game:
         self.surface = pygame.Surface(self.screen.get_size())
         self.clock = pygame.time.Clock()
 
-        self.players = [Player(self.surface, color) for color in COLORS]
+        self.players = [Player(self.surface, color, id) for color, id in zip(COLORS, IDS)]
 
     def __enter__(self):
         return self
@@ -235,6 +296,8 @@ class Game:
         pygame.display.flip()
 
     def playerColidesWithWalls(self, player):
+        if DEBUG:
+            return False
         x, y = player.position
         left_wall_collision = x - COLLISTION_RADIUS <= 0
         top_wall_collision = y - COLLISTION_RADIUS <= 0
@@ -244,6 +307,8 @@ class Game:
         return any_wall_collision
 
     def playerColidesWithTrail(self, player, trail):
+        if DEBUG:
+            return False
         player_mask = pygame.mask.from_surface(player.surface)
         trail_mask = pygame.mask.from_surface(trail.surface)
 
