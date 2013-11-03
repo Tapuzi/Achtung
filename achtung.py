@@ -9,12 +9,18 @@ import random
 
 ##
 ## TODO:
-##     - Implement holes in trails
 ##     - Add sounds (start, player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
 ##     - Add full screen support (with black stripes...)
 ##     - Add rounds and scores
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
 ##       or try using http://pygamedraw.wordpress.com/ for trail drawing.
+##     - Also consider using pygamedraw to eliminate the trail hole bug.
+##       (using proper lines instead of circles might solve it)
+##     - Profile the game and improve performance (it seems that with multiple players / bigger window,
+##       The drawing / collision detection slows the game down.
+##       - Try to do things in parallel? (collision detection for example)
+##       - Try to limit the mask overlap test are to that of the player's position (and radius)
+##       - Maybe just use a lower target framerate
 ##     - Add a mode in between round that allows to drive robots back to the middle of the board?
 ##     - Add bonuses (speed up/down, control reverse, players swap, electrify etc...)
 ##
