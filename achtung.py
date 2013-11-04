@@ -7,8 +7,12 @@ from vec2d import Vec2d
 import uberclock02 as uberclock
 import random
 import numpy as np
-import cv2
-import cv2.cv as cv
+
+
+OPEN_CV = False
+if OPEN_CV:
+    import cv2
+    import cv2.cv as cv
 
 ##
 ## TODO:
@@ -17,8 +21,6 @@ import cv2.cv as cv
 ##     - Add rounds and scores
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
 ##       or try using http://pygamedraw.wordpress.com/ for trail drawing.
-##     - Also consider using pygamedraw to eliminate the trail hole bug.
-##       (using proper lines instead of circles might solve it)
 ##     - Profile the game and improve performance (it seems that with multiple players / bigger window,
 ##       The drawing / collision detection slows the game down.
 ##       - Try to do things in parallel? (collision detection for example)
@@ -196,11 +198,11 @@ class WebCam:
 		self.webCamCapture.set(cv.CV_CAP_PROP_FRAME_WIDTH, GAME_WIDTH)
 		self.webCamCapture.set(cv.CV_CAP_PROP_FRAME_HEIGHT, GAME_HIGHT)
 		self.webCamCapture.set(cv2.cv.CV_CAP_PROP_FPS, FPS_LIMIT)
-		
+
 		ret, img = self.webCamCapture.read() # Sample WebCam
 		if ret:
 			cv2.imshow("WebCam", img)
-		
+
 class WatchController(Controller):
     def __init__(self, comPort, deviceId):
         self.deviceId = deviceId
@@ -320,7 +322,7 @@ class Player:
             return self.position
 
         elif DEBUG_WEBCAM:
-            maxArea = 0 
+            maxArea = 0
             maxCnt = []
             maxPosX = 0
             maxPosY = 0
@@ -346,7 +348,7 @@ class Player:
                     self.position = (maxPosX, maxPosY)
                 if maxArea == 0:
                     raise RobotNotFoundError()
-  
+
     def updatePosition(self):
         self.position = self.getRobotPositionFromCamera()
         self.surface.fill((0, 0 ,0, 0))
@@ -499,12 +501,13 @@ class Game:
         """Wait for the next game tick"""
         self.clock.tick(FPS_LIMIT)
         current_fps = self.clock.get_fps()
-        pygame.display.set_caption("FPS: %f" % current_fps)		
-		
+        pygame.display.set_caption("FPS: %f" % current_fps)
+
 def main():
     global webcam
     with Game() as game:
-        webcam = WebCam()
+        if OPEN_CV:
+            webcam = WebCam()
         game.start()
 
 if "__main__" == __name__:
