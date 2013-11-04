@@ -18,7 +18,6 @@ if OPEN_CV:
 
 ##
 ## TODO:
-##     - Add full screen support (with black stripes...)
 ##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
 ##     - Add rounds and scores
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
@@ -49,6 +48,8 @@ DEBUG_KEYBOARD_TWO_PLAYERS = False
 DEBUG_MOUSE = False
 
 DEBUG_SINGLE_PLAYER = DEBUG and not DEBUG_KEYBOARD_TWO_PLAYERS
+
+FULLSCREEN = False
 
 #####
 
@@ -129,14 +130,15 @@ class Trail:
         pygame.draw.circle(self.last_point_surface, self.color.value, int_point, ROBOT_RADIUS)
 
     def addInvisiblePoint(self, point):
-        int_point = (int(point.x), int(point.y))
-        last_point_int = (int(self.last_point.x), int(self.last_point.y))
+        if self.last_point is not None:
+            int_point = (int(point.x), int(point.y))
+            last_point_int = (int(self.last_point.x), int(self.last_point.y))
 
-        self.last_point_surface.fill((0, 0, 0, 0))
-        pygame.draw.circle(self.last_point_surface, self.color.value, last_point_int, ROBOT_RADIUS)
+            self.last_point_surface.fill((0, 0, 0, 0))
+            pygame.draw.circle(self.last_point_surface, self.color.value, last_point_int, ROBOT_RADIUS)
 
-        pygame.draw.circle(self.last_point_surface, (0, 0, 0, 0), int_point, ROBOT_RADIUS)
-        self.surface.blit(self.last_point_surface, (0, 0))
+            pygame.draw.circle(self.last_point_surface, (0, 0, 0, 0), int_point, ROBOT_RADIUS)
+            self.surface.blit(self.last_point_surface, (0, 0))
 
     def draw(self):
         self.game_surface.blit(self.surface, (0, 0))
@@ -410,7 +412,16 @@ class Player:
 class Game:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((GAME_WIDTH, GAME_HIGHT))
+
+        flags = 0
+        if FULLSCREEN:
+            flags |= pygame.FULLSCREEN
+        self.screen = pygame.display.set_mode((GAME_WIDTH, GAME_HIGHT), flags)
+        if FULLSCREEN:
+            # It takes some time for the screen to adjust,
+            # so wait to let the game begin when the screen is ready.
+            pygame.time.wait(2000)
+
         self.surface = pygame.Surface(self.screen.get_size())
         self.clock = pygame.time.Clock()
 
