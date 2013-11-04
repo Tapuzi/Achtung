@@ -18,8 +18,8 @@ if OPEN_CV:
 
 ##
 ## TODO:
-##     - Add sounds (start, player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
 ##     - Add full screen support (with black stripes...)
+##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
 ##     - Add rounds and scores
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
 ##       or try using http://pygamedraw.wordpress.com/ for trail drawing.
@@ -65,6 +65,10 @@ def list_files_full_path(directory):
 SOUND_FILES = list_files_full_path(SOUND_DIR)
 MUSIC_FILES = list_files_full_path(MUSIC_DIR)
 IMAGE_FILES = list_files_full_path(IMAGES_DIR)
+
+SOUND_FILE_NAMES_TO_FILES = {path.basename(file): file for file in SOUND_FILES}
+MUSIC_FILE_NAMES_TO_FILES = {path.basename(file): file for file in MUSIC_FILES}
+IMAGE_FILE_NAMES_TO_FILES = {path.basename(file): file for file in IMAGE_FILES}
 
 Color = namedtuple('Color', ['name', 'value', 'value_range'])
 
@@ -413,6 +417,8 @@ class Game:
         self.music_file = random.choice(MUSIC_FILES)
         pygame.mixer.music.load(self.music_file)
 
+        self.begin_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['begin.wav'])
+
         if DEBUG_KEYBOARD:
             self.controllers = [KeyboardController(pygame.K_LEFT, pygame.K_RIGHT)]
             if DEBUG_KEYBOARD_TWO_PLAYERS:
@@ -435,6 +441,8 @@ class Game:
 
     def start(self):
         pygame.mixer.music.play(loops=-1)
+
+        self.begin_sound.play()
 
         while True:
             for event in pygame.event.get():
