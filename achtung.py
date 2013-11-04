@@ -57,12 +57,14 @@ SOUND_DIR = path.join(ROOT_DIR, 'sound')
 MUSIC_DIR = path.join(ROOT_DIR, 'music')
 IMAGES_DIR = path.join(ROOT_DIR, 'Images')
 
-def list_dir_full_path(directory):
-    return [path.join(directory, entry) for entry in os.listdir(directory)]
+def list_files_full_path(directory):
+    entries = [path.join(directory, entry) for entry in os.listdir(directory)]
+    files = [entry for entry in entries if path.isfile(entry)]
+    return files
 
-SOUND_FILES = list_dir_full_path(SOUND_DIR)
-MUSIC_FILES = list_dir_full_path(MUSIC_DIR)
-IMAGE_FILES = list_dir_full_path(IMAGES_DIR)
+SOUND_FILES = list_files_full_path(SOUND_DIR)
+MUSIC_FILES = list_files_full_path(MUSIC_DIR)
+IMAGE_FILES = list_files_full_path(IMAGES_DIR)
 
 Color = namedtuple('Color', ['name', 'value', 'value_range'])
 
@@ -408,8 +410,8 @@ class Game:
         self.surface = pygame.Surface(self.screen.get_size())
         self.clock = pygame.time.Clock()
 
-        music_file = random.choice(MUSIC_FILES)
-        pygame.mixer.music.load(music_file)
+        self.music_file = random.choice(MUSIC_FILES)
+        pygame.mixer.music.load(self.music_file)
 
         if DEBUG_KEYBOARD:
             self.controllers = [KeyboardController(pygame.K_LEFT, pygame.K_RIGHT)]
@@ -522,14 +524,6 @@ class Game:
         pygame.display.set_caption("FPS: %f" % current_fps)
 
 def main():
-    pygame.init()
-    pygame.mixer.init()
-    pygame.mixer.music.load(r'C:\Projects\Achtung\music\chipzel_Super_Hexagon_EP_01_Courtesy.ogg')
-    pygame.mixer.music.play()
-    pygame.time.wait(1000 * 5)
-    pygame.quit()
-    return
-
     global webcam
     with Game() as game:
         if OPEN_CV:
