@@ -6,6 +6,9 @@ from collections import namedtuple
 from vec2d import Vec2d
 import uberclock02 as uberclock
 import random
+import numpy as np
+import cv2
+import cv2.cv as cv
 
 ##
 ## TODO:
@@ -45,13 +48,12 @@ DEBUG_SINGLE_PLAYER = DEBUG and not DEBUG_KEYBOARD_TWO_PLAYERS
 
 Color = namedtuple('Color', ['name', 'value', 'value_range'])
 
-# TODO: set value range for openCV
 COLORS = [
-    Color('Black', (0, 0, 0), None),
-    Color('Red', (255, 0, 0), None),
-    Color('Green', (0, 255, 0), None),
-    Color('Blue', (0, 0, 255), None),
-    Color('Yellow', (255, 255, 0), None),
+    Color('Black', (0, 0, 0), (np.array([0, 0, 0],np.uint8),np.array([1, 1, 1],np.uint8))),
+    Color('Red', (255, 0, 0), (np.array([160, 160, 60],np.uint8),np.array([180, 255, 255],np.uint8))),
+    Color('Green', (0, 255, 0), (np.array([38, 140, 60],np.uint8), np.array([75, 255, 255],np.uint8))),
+    Color('Blue', (0, 0, 255), (np.array([75, 80, 80],np.uint8), np.array([130, 255, 255],np.uint8))),
+    Color('Yellow', (255, 255, 0), (np.array([20, 100, 100],np.uint8), np.array([38, 255, 255],np.uint8))),
 ]
 
 IDS = ['1337' for color in COLORS]
@@ -236,6 +238,8 @@ class Player:
         self.game_surface = game_surface
         self.surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
         self.color = color
+        self.lowerColor = color.value_range[0]
+        self.upperColor = color.value_range[1]
         self.alive = True
         self.direction = None
         self.position = None
@@ -301,6 +305,31 @@ class Player:
         if DEBUG:
             return self.position
 
+        maxArea = 0 
+        maxCnt = []
+        maxPosX = 0
+        maxPosY = 0
+        ret, frame = webCamCapture.read() # ret value true if capture from webCam went good, frame is the picture from the webCam
+        if ret == True:
+            img = cv2.GaussianBlur(frame, (5,5), 0)
+            img = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+            binaryColor = cv2.inRange(img, self.lowerColor, self.upperColor) # #creating a threshold image that contains pixels in between color Upper and Lower
+            contours, hier = cv2.findContours(binaryColor, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+            if contours:
+                for cnt in contours:
+                    moments = cv2.moments(cnt)
+                    area = moments['m00']
+                    approx = cv2.approxPolyDP(cnt,0.05*cv2.arcLength(cnt,True),True)
+                    if len(approx) == 3:
+                        if area > maxArea:
+                            maxArea = area
+                            maxCnt = cnt
+                            maxPosX = int(moments['m10'] / area)
+                            maxPosY = int(moments['m01'] / area)
+                self.position = (maxPosX, maxPosY)
+            else:
+                raise RobotNotFoundError()
+  
     def updatePosition(self):
         self.position = self.getRobotPositionFromCamera()
         self.surface.fill((0, 0 ,0, 0))
@@ -456,7 +485,9 @@ class Game:
         pygame.display.set_caption("FPS: %f" % current_fps)
 
 def main():
+    global webCamCapture
     with Game() as game:
+        webCamCapture = cv2.VideoCapture(0)
         game.start()
 
 if "__main__" == __name__:
