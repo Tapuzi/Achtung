@@ -34,6 +34,9 @@ import cv2.cv as cv
 
 DEBUG = True
 
+DEBUG_WEBCAM = False
+DEUBG_WEBCAM_WITH_WINDOW = False
+
 # Set to false to debug with watch controllers
 DEBUG_KEYBOARD = True
 
@@ -187,6 +190,17 @@ class KeyboardController(Controller):
 
         return direction
 
+class WebCam:
+	def __init__(self):
+		self.webCamCapture = cv2.VideoCapture(0)
+		self.webCamCapture.set(cv.CV_CAP_PROP_FRAME_WIDTH, GAME_WIDTH)
+		self.webCamCapture.set(cv.CV_CAP_PROP_FRAME_HEIGHT, GAME_HIGHT)
+		self.webCamCapture.set(cv2.cv.CV_CAP_PROP_FPS, FPS_LIMIT)
+		
+		ret, img = self.webCamCapture.read() # Sample WebCam
+		if ret:
+			cv2.imshow("WebCam", img)
+		
 class WatchController(Controller):
     def __init__(self, comPort, deviceId):
         self.deviceId = deviceId
@@ -302,33 +316,36 @@ class Player:
 
     def getRobotPositionFromCamera(self):
         """Get Position from camera via opencv. Throw RobotNotFoundError if robot not found."""
-        if DEBUG:
+        if DEBUG and not DEBUG_WEBCAM:
             return self.position
 
-        maxArea = 0 
-        maxCnt = []
-        maxPosX = 0
-        maxPosY = 0
-        ret, frame = webCamCapture.read() # ret value true if capture from webCam went good, frame is the picture from the webCam
-        if ret == True:
-            img = cv2.GaussianBlur(frame, (5,5), 0)
-            img = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-            binaryColor = cv2.inRange(img, self.lowerColor, self.upperColor) # #creating a threshold image that contains pixels in between color Upper and Lower
-            contours, hier = cv2.findContours(binaryColor, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-            if contours:
-                for cnt in contours:
-                    moments = cv2.moments(cnt)
-                    area = moments['m00']
-                    approx = cv2.approxPolyDP(cnt,0.05*cv2.arcLength(cnt,True),True)
-                    if len(approx) == 3:
-                        if area > maxArea:
-                            maxArea = area
-                            maxCnt = cnt
-                            maxPosX = int(moments['m10'] / area)
-                            maxPosY = int(moments['m01'] / area)
-                self.position = (maxPosX, maxPosY)
-            else:
-                raise RobotNotFoundError()
+        elif DEBUG_WEBCAM:
+            maxArea = 0 
+            maxCnt = []
+            maxPosX = 0
+            maxPosY = 0
+            ret, frame = webcam.webCamCapture.read() # ret value true if capture from webCam went good, frame is the picture from the webCam
+            if ret == True:
+                if DEUBG_WEBCAM_WITH_WINDOW:
+                    cv2.imshow("WebCam", frame)
+                img = cv2.GaussianBlur(frame, (5,5), 0)
+                img = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+                binaryColor = cv2.inRange(img, self.lowerColor, self.upperColor) # #creating a threshold image that contains pixels in between color Upper and Lower
+                contours, hier = cv2.findContours(binaryColor, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+                if contours:
+                    for cnt in contours:
+                        moments = cv2.moments(cnt)
+                        area = moments['m00']
+                        approx = cv2.approxPolyDP(cnt,0.05*cv2.arcLength(cnt,True),True)
+                        if len(approx) == 3:
+                            if area > maxArea:
+                                maxArea = area
+                                maxCnt = cnt
+                                maxPosX = int(moments['m10'] / area)
+                                maxPosY = int(moments['m01'] / area)
+                    self.position = (maxPosX, maxPosY)
+                if maxArea == 0:
+                    raise RobotNotFoundError()
   
     def updatePosition(self):
         self.position = self.getRobotPositionFromCamera()
@@ -482,12 +499,12 @@ class Game:
         """Wait for the next game tick"""
         self.clock.tick(FPS_LIMIT)
         current_fps = self.clock.get_fps()
-        pygame.display.set_caption("FPS: %f" % current_fps)
-
+        pygame.display.set_caption("FPS: %f" % current_fps)		
+		
 def main():
-    global webCamCapture
+    global webcam
     with Game() as game:
-        webCamCapture = cv2.VideoCapture(0)
+        webcam = WebCam()
         game.start()
 
 if "__main__" == __name__:
