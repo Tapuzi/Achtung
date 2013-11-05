@@ -20,6 +20,8 @@ if OPEN_CV:
 ## TODO:
 ##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
 ##     - Add rounds and scores
+##     - Change the _move function toke time-passed-since last tick into account,
+##       so the players will always move the same distance, even if FPS drops.
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
 ##       or try using http://pygamedraw.wordpress.com/ for trail drawing.
 ##     - Profile the game and improve performance (it seems that with multiple players / bigger window,
