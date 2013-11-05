@@ -461,6 +461,9 @@ class Game:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     exit()
+                elif event.type == pygame.KEYDOWN:
+					if event.key == pygame.K_ESCAPE:
+						exit()
 
             players_alive = [player for player in self.players if player.alive]
             for player in players_alive:
