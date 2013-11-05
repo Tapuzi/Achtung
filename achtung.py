@@ -104,6 +104,8 @@ TIME_TO_HOLE_MIN = 1.25 * 1000
 TIME_TO_HOLE_MAX = 1.75 * 1000
 HOLE_TIME_INTERVAL = 0.3 * 1000
 
+NUMBER_OF_ROUNDS = 3
+
 #
 # Classes
 #
@@ -286,19 +288,17 @@ class Player:
         self.controller = controller
 
         self._time_of_next_hole = None
-        self.resetTimeOfNextHole()
-
         self._time_of_hole_end = None
-        self.resetTimeOfHoleEnd()
-
         self._creating_hole = False
-        # Reset timers
-        self.creatingHole()
-
+        self.resetTimers()
 
         if DEBUG:
             self.position = Vec2d(GAME_WIDTH / 2, GAME_HIGHT / 2)
             self.direction_vector = Vec2d(1, 0)
+
+    def resetTimers(self):
+        self.resetTimeOfNextHole()
+        self.resetTimeOfHoleEnd()
 
     def resetTimeOfNextHole(self):
         current_time = pygame.time.get_ticks()
@@ -431,6 +431,7 @@ class Game:
         pygame.mixer.music.load(self.music_file)
 
         self.begin_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['begin.wav'])
+        self.start_beeps_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['start_beeps.wav'])
 
         if DEBUG_KEYBOARD:
             self.controllers = [KeyboardController(pygame.K_LEFT, pygame.K_RIGHT)]
@@ -453,9 +454,7 @@ class Game:
         pygame.quit()
 
     def start(self):
-        pygame.mixer.music.play(loops=-1)
-
-        self.begin_sound.play()
+        mode = 'pre_round_wait'
 
         while True:
             for event in pygame.event.get():
@@ -465,44 +464,71 @@ class Game:
 					if event.key == pygame.K_ESCAPE:
 						exit()
 
-            players_alive = [player for player in self.players if player.alive]
-            for player in players_alive:
-                try:
+            if mode == 'pre_round_wait':
+                self.clearSurface()
+                for player in self.players:
                     player.updatePosition()
-                except RobotNotFoundError:
-                    player.die()
-                    players_alive.remove(player)
-                player.updateDirection()
+                    player.draw()
+                self.updateDisplay()
 
-            self.clearSurface()
-            for player in self.players:
-                player.trail.draw()
-                player.draw()
-            self.updateDisplay()
+                pressed_keys = pygame.key.get_pressed()
+                if pressed_keys[pygame.K_SPACE] or pressed_keys[pygame.K_RETURN]:
+                    mode = 'pre_round_start'
 
-            for player in players_alive:
-                if self.playerColidesWithWalls(player):
-                    player.die()
+            elif mode == 'pre_round_start':
+                self.start_beeps_sound.play()
+                sound_length = self.start_beeps_sound.get_length()
+                # TODO: display on the Screen 3, 2, 1, Begin
+                pygame.time.wait(int(sound_length * 1000))
 
-                for trail in (player.trail for player in self.players):
-                    if self.playerColidesWithTrail(player, trail):
-                        player.die()
-            players_alive = [player for player in self.players if player.alive]
+                pygame.mixer.music.play(loops=-1)
 
+                self.begin_sound.play()
+                for player in self.players:
+                    player.resetTimers()
+                mode = 'round'
 
-            # Check end conditions
-            if len(players_alive) == 0:
-                end_state = 'draw'
-                break
-            elif len(players_alive) == 1:
-                end_state = 'win'
-                winner = players_alive[0]
-                if not DEBUG_SINGLE_PLAYER:
-                    break
-
-            if DEBUG:
+            elif mode == 'round':
+                players_alive = [player for player in self.players if player.alive]
                 for player in players_alive:
-                    player._move()
+                    try:
+                        player.updatePosition()
+                    except RobotNotFoundError:
+                        player.die()
+                        players_alive.remove(player)
+                    player.updateDirection()
+
+                self.clearSurface()
+                for player in self.players:
+                    player.trail.draw()
+                    player.draw()
+                self.updateDisplay()
+
+                for player in players_alive:
+                    if self.playerColidesWithWalls(player):
+                        player.die()
+
+                    for trail in (player.trail for player in self.players):
+                        if self.playerColidesWithTrail(player, trail):
+                            player.die()
+                players_alive = [player for player in self.players if player.alive]
+
+
+                # Check end conditions
+                if len(players_alive) == 0:
+                    end_state = 'draw'
+                    break
+                elif len(players_alive) == 1:
+                    end_state = 'win'
+                    winner = players_alive[0]
+                    if not DEBUG_SINGLE_PLAYER:
+                        break
+
+                if DEBUG:
+                    for player in players_alive:
+                        player._move()
+            else:
+                assert False
 
             self.tick()
 
