@@ -18,6 +18,7 @@ if OPEN_CV:
 
 ##
 ## TODO:
+##     - Split the game modes into separate functions
 ##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
 ##     - Add rounds and scores
 ##     - Change the _move function toke time-passed-since last tick into account,
@@ -120,6 +121,11 @@ class Trail:
         self.color = color
         self.last_point = None
         self.last_point_surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
+
+    def reset(self):
+        self.last_point = None
+        self.last_point_surface.fill((0, 0, 0, 0))
+        self.surface.fill((0, 0, 0, 0))
 
     def addPoint(self, point):
         int_point = (int(point.x), int(point.y))
@@ -292,9 +298,13 @@ class Player:
         self._creating_hole = False
         self.resetTimers()
 
-        if DEBUG:
-            self.position = Vec2d(GAME_WIDTH / 2, GAME_HIGHT / 2)
-            self.direction_vector = Vec2d(1, 0)
+    def reset(self):
+        self.alive = True
+        self.trail.reset()
+
+    def _set_position_and_direction_vector(self, position, direction_vector):
+        self.position = position
+        self.direction_vector = direction_vector
 
     def resetTimers(self):
         self.resetTimeOfNextHole()
@@ -444,8 +454,16 @@ class Game:
 
         self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, self.controllers)]
 
-        if DEBUG_KEYBOARD_TWO_PLAYERS:
-            self.players[1].position.y -= 100
+    def _randomize_players_positions_and_direction_vectors(self):
+        for player in self.players:
+            MARGIN_FACTOR = 5
+            WIDTH_MARGIN = GAME_WIDTH / MARGIN_FACTOR
+            HIGHT_MARGIN = GAME_HIGHT / MARGIN_FACTOR
+            x = random.randrange(WIDTH_MARGIN, GAME_WIDTH - WIDTH_MARGIN)
+            y = random.randrange(HIGHT_MARGIN, GAME_HIGHT - HIGHT_MARGIN)
+            direction_vector = Vec2d(1, 0)
+            direction_vector.rotate(random.randrange(0, 360))
+            player._set_position_and_direction_vector(Vec2d(x, y), direction_vector)
 
     def __enter__(self):
         return self
@@ -456,6 +474,10 @@ class Game:
     def start(self):
         mode = 'pre_round_wait'
 
+        if DEBUG:
+            self._randomize_players_positions_and_direction_vectors()
+
+        round_number = 1
         while True:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -517,29 +539,46 @@ class Game:
                 # Check end conditions
                 if len(players_alive) == 0:
                     end_state = 'draw'
-                    break
+                    mode = 'round_end'
                 elif len(players_alive) == 1:
                     end_state = 'win'
                     winner = players_alive[0]
                     if not DEBUG_SINGLE_PLAYER:
-                        break
+                        mode = 'round_end'
 
                 if DEBUG:
                     for player in players_alive:
                         player._move()
+            elif mode == 'round_end':
+                if end_state == 'draw':
+                    message = 'Draw.'
+                elif end_state == 'win':
+                    message = '%s is he Winner!' % winner.color.name
+                else:
+                    message = 'WTF?'
+
+                print message
+
+                # TODO: pause instead and resume in the next round?
+                pygame.mixer.music.stop()
+
+                if round_number < NUMBER_OF_ROUNDS:
+                    round_number += 1
+                    for player in self.players:
+                        player.reset()
+                    if DEBUG:
+                        self._randomize_players_positions_and_direction_vectors()
+                    mode = 'pre_round_wait'
+                else:
+                    print 'Game over'
+                    break
             else:
+                # Unknown state
                 assert False
 
             self.tick()
 
-        if end_state == 'draw':
-            message = 'Draw.'
-        elif end_state == 'win':
-            message = '%s is he Winner!' % winner.color.name
-        else:
-            message = 'WTF?'
 
-        print message
 
     def clearSurface(self):
         self.surface.fill((255, 255, 255))
