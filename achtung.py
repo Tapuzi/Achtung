@@ -107,6 +107,9 @@ HOLE_TIME_INTERVAL = 0.3 * 1000
 
 NUMBER_OF_ROUNDS = 3
 
+BACKGROUND_MUSIC_VOLUME_LOW = 0.3
+BACKGROUND_MUSIC_VOLUME_NORMAL = 0.9
+
 #
 # Classes
 #
@@ -484,8 +487,8 @@ class Game:
         if DEBUG:
             self._randomize_players_positions_and_direction_vectors()
 
+        pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
         pygame.mixer.music.play(loops=-1)
-        pygame.mixer.music.pause()
 
         round_number = 1
         while True:
@@ -513,7 +516,7 @@ class Game:
                 # TODO: display on the Screen 3, 2, 1, Begin
                 pygame.time.wait(int(sound_length * 1000))
 
-                pygame.mixer.music.unpause()
+                pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_NORMAL)
 
                 self.begin_sound.play()
                 for player in self.players:
@@ -565,7 +568,7 @@ class Game:
 
                 print message
 
-                pygame.mixer.music.pause()
+                pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
 
                 if round_number < NUMBER_OF_ROUNDS:
                     round_number += 1
