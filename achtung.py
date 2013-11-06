@@ -85,7 +85,7 @@ COLORS = [
 ]
 
 IDS = ['1337' for color in COLORS]
-COMPORTS = ['COM10']
+COMPORTS = ['COM3']
 
 LEFT = -1
 STRAIGHT = 0
@@ -442,6 +442,7 @@ class Game:
 
         self.begin_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['begin.wav'])
         self.start_beeps_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['start_beeps.wav'])
+        self.explosion_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['80938__tony-b-kksm__soft-explosion.wav'])
 
         if DEBUG_KEYBOARD:
             self.controllers = [KeyboardController(pygame.K_LEFT, pygame.K_RIGHT)]
@@ -470,6 +471,10 @@ class Game:
 
     def __exit__(self, type, value, traceback):
         pygame.quit()
+
+    def kill_player(self, player):
+        self.explosion_sound.play()
+        player.die()
 
     def start(self):
         mode = 'pre_round_wait'
@@ -515,10 +520,10 @@ class Game:
                 for player in players_alive:
                     try:
                         player.updatePosition()
+                        player.updateDirection()
                     except RobotNotFoundError:
-                        player.die()
-                        players_alive.remove(player)
-                    player.updateDirection()
+                        self.kill_player(player)
+                players_alive = [player for player in self.players if player.alive]
 
                 self.clearSurface()
                 for player in self.players:
@@ -528,11 +533,11 @@ class Game:
 
                 for player in players_alive:
                     if self.playerColidesWithWalls(player):
-                        player.die()
+                        self.kill_player(player)
 
                     for trail in (player.trail for player in self.players):
                         if self.playerColidesWithTrail(player, trail):
-                            player.die()
+                            self.kill_player(player)
                 players_alive = [player for player in self.players if player.alive]
 
 
