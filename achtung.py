@@ -85,7 +85,7 @@ COLORS = [
 ]
 
 IDS = ['1337' for color in COLORS]
-COMPORTS = ['COM3']
+COMPORTS = ['COM10']
 
 LEFT = -1
 STRAIGHT = 0
@@ -454,6 +454,7 @@ class Game:
             self.controllers = [WatchController(port, id) for port, id in zip(COMPORTS, IDS)]
 
         self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, self.controllers)]
+        self.players_alive = self.players[:]
 
     def _randomize_players_positions_and_direction_vectors(self):
         for player in self.players:
@@ -473,8 +474,9 @@ class Game:
         pygame.quit()
 
     def kill_player(self, player):
-        self.explosion_sound.play()
         player.die()
+        self.explosion_sound.play()
+        self.players_alive.remove(player)
 
     def start(self):
         mode = 'pre_round_wait'
@@ -516,14 +518,12 @@ class Game:
                 mode = 'round'
 
             elif mode == 'round':
-                players_alive = [player for player in self.players if player.alive]
-                for player in players_alive:
+                for player in self.players_alive[:]:
                     try:
                         player.updatePosition()
                         player.updateDirection()
                     except RobotNotFoundError:
                         self.kill_player(player)
-                players_alive = [player for player in self.players if player.alive]
 
                 self.clearSurface()
                 for player in self.players:
@@ -531,28 +531,26 @@ class Game:
                     player.draw()
                 self.updateDisplay()
 
-                for player in players_alive:
+                for player in self.players_alive[:]:
                     if self.playerColidesWithWalls(player):
                         self.kill_player(player)
 
                     for trail in (player.trail for player in self.players):
                         if self.playerColidesWithTrail(player, trail):
                             self.kill_player(player)
-                players_alive = [player for player in self.players if player.alive]
-
 
                 # Check end conditions
-                if len(players_alive) == 0:
+                if len(self.players_alive) == 0:
                     end_state = 'draw'
                     mode = 'round_end'
-                elif len(players_alive) == 1:
+                elif len(self.players_alive) == 1:
                     end_state = 'win'
-                    winner = players_alive[0]
+                    winner = self.players_alive[0]
                     if not DEBUG_SINGLE_PLAYER:
                         mode = 'round_end'
 
                 if DEBUG:
-                    for player in players_alive:
+                    for player in self.players_alive:
                         player._move()
             elif mode == 'round_end':
                 if end_state == 'draw':
@@ -571,6 +569,7 @@ class Game:
                     round_number += 1
                     for player in self.players:
                         player.reset()
+                    self.players_alive = self.players[:]
                     if DEBUG:
                         self._randomize_players_positions_and_direction_vectors()
                     mode = 'pre_round_wait'
