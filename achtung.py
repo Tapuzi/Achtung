@@ -484,6 +484,9 @@ class Game:
         if DEBUG:
             self._randomize_players_positions_and_direction_vectors()
 
+        pygame.mixer.music.play(loops=-1)
+        pygame.mixer.music.pause()
+
         round_number = 1
         while True:
             for event in pygame.event.get():
@@ -510,7 +513,7 @@ class Game:
                 # TODO: display on the Screen 3, 2, 1, Begin
                 pygame.time.wait(int(sound_length * 1000))
 
-                pygame.mixer.music.play(loops=-1)
+                pygame.mixer.music.unpause()
 
                 self.begin_sound.play()
                 for player in self.players:
@@ -562,8 +565,7 @@ class Game:
 
                 print message
 
-                # TODO: pause instead and resume in the next round?
-                pygame.mixer.music.stop()
+                pygame.mixer.music.pause()
 
                 if round_number < NUMBER_OF_ROUNDS:
                     round_number += 1
