@@ -1,7 +1,8 @@
 import cv2
 
 def checkWebcam(camNum):
-  while True:
+	capt = cv2.VideoCapture(0)
+	while True:
 		ret, frame = capt.read()
 		if ret:
 			cv2.imshow('webcam', frame)

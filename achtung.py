@@ -11,7 +11,7 @@ import os
 from os import path
 
 
-OPEN_CV = False
+OPEN_CV = True
 if OPEN_CV:
     import cv2
     import cv2.cv as cv
@@ -233,7 +233,30 @@ class WebCam:
         self.webCamCapture.set(cv.CV_CAP_PROP_FRAME_WIDTH, GAME_WIDTH)
         self.webCamCapture.set(cv.CV_CAP_PROP_FRAME_HEIGHT, GAME_HIGHT)
         self.webCamCapture.set(cv2.cv.CV_CAP_PROP_FPS, FPS_LIMIT)
-  
+    
+    
+    def testRectify(self, sensitivity):
+        while True:
+            ret, frame = self.webCamCapture.read()
+            if ret:
+                frame = self.fixCap(frame, sensitivity)
+                cv2.imshow('webcam', frame)
+                k = cv2.waitKey(1)
+                if k == 27:
+                    break
+        cv2.destroyAllWindows()
+    
+    def testContours(self):
+        while True:
+            ret, frame = self.webCamCapture.read()
+            if ret:
+                frame = self.showContours(frame)
+                cv2.imshow('webcam', frame)
+                k = cv2.waitKey(1)
+                if k == 27:
+                    break
+        cv2.destroyAllWindows()
+    
     @staticmethod
     def rectify(h):
         ''' this function put vertices of square of the board, in clockwise order '''
@@ -251,23 +274,50 @@ class WebCam:
         return hnew
     
     @staticmethod
-    def fixCap(frame):
+    def showContours(frame):
+        '''Spots contours and returns a frame with the spotted contours'''
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        thresh = cv2.adaptiveThreshold(gray, 255,1,1,5,2)
+        contours = None
+        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        
+        if contours == None:
+            return frame
+        image_area = gray.size
+        
+        print len(contours)
+        for i in contours:
+            if cv2.contourArea(i) > image_area/2:
+                cv2.drawContours(frame,contours,1,(0,255,0),3)
+        
+        return frame
+        
+    @staticmethod
+    def fixCap(frame, sensitivity):
         '''receives frame from webCam and rotates and resizes it to game's width and height'''
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         thresh = cv2.adaptiveThreshold(gray, 255,1,1,5,2)
+        contours = None
         contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        if contours == None:
+            return frame
         image_area = gray.size
+        
+        approx = None
         for i in contours:
             if cv2.contourArea(i) > image_area/2:
                 peri = cv2.arcLength(i, True)
-                approx = cv2.approxPolyDP(i, 0.02*peri, True)
+                approx = cv2.approxPolyDP(i, sensitivity*peri, True)
                 break
         
+        if approx == None:
+            return frame
         h = np.array([ [0,0],[GAME_WIDTH,0],[GAME_WIDTH, GAME_HIGHT],[0,GAME_HIGHT] ],np.float32)
         approx = WebCam.rectify(approx)
         retval = cv2.getPerspectiveTransform(approx,h)
         warp = cv2.warpPerspective(frame,retval,(GAME_WIDTH, GAME_HIGHT))
         return warp
+        
 
 class WatchController(Controller):
     def __init__(self, comPort, deviceId):
