@@ -293,25 +293,27 @@ class WebCam:
         return frame
         
     @staticmethod
-    def fixCap(frame, sensitivity):
+    def fixCap(frame):
         '''receives frame from webCam and rotates and resizes it to game's width and height'''
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        thresh = cv2.adaptiveThreshold(gray, 255,1,1,5,2)
+        approx = None
         contours = None
-        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        contours, hierarchy = cv2.findContours(gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         if contours == None:
             return frame
         image_area = gray.size
-        
-        approx = None
+    
         for i in contours:
             if cv2.contourArea(i) > image_area/2:
                 peri = cv2.arcLength(i, True)
-                approx = cv2.approxPolyDP(i, sensitivity*peri, True)
-                break
+                approx = cv2.approxPolyDP(i, 0.02*peri, True)
+                if len(approx) == 4:                
+                    break
         
         if approx == None:
             return frame
+            
         h = np.array([ [0,0],[GAME_WIDTH,0],[GAME_WIDTH, GAME_HIGHT],[0,GAME_HIGHT] ],np.float32)
         approx = WebCam.rectify(approx)
         retval = cv2.getPerspectiveTransform(approx,h)
