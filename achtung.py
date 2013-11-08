@@ -32,6 +32,7 @@ if OPEN_CV:
 ##       - Maybe just use a lower target framerate
 ##     - Add a mode in between round that allows to drive robots back to the middle of the board?
 ##     - Add bonuses (speed up/down, control reverse, players swap, electrify etc...)
+##     - Add black frame around board edges in size of game's width and height
 ##
 
 #
@@ -227,15 +228,46 @@ class KeyboardController(Controller):
         return direction
 
 class WebCam:
-	def __init__(self):
-		self.webCamCapture = cv2.VideoCapture(0)
-		self.webCamCapture.set(cv.CV_CAP_PROP_FRAME_WIDTH, GAME_WIDTH)
-		self.webCamCapture.set(cv.CV_CAP_PROP_FRAME_HEIGHT, GAME_HIGHT)
-		self.webCamCapture.set(cv2.cv.CV_CAP_PROP_FPS, FPS_LIMIT)
-
-		ret, img = self.webCamCapture.read() # Sample WebCam
-		if ret:
-			cv2.imshow("WebCam", img)
+    def __init__(self):
+        self.webCamCapture = cv2.VideoCapture(0)
+        self.webCamCapture.set(cv.CV_CAP_PROP_FRAME_WIDTH, GAME_WIDTH)
+        self.webCamCapture.set(cv.CV_CAP_PROP_FRAME_HEIGHT, GAME_HIGHT)
+        self.webCamCapture.set(cv2.cv.CV_CAP_PROP_FPS, FPS_LIMIT)
+  
+    @staticmethod
+    def rectify(h):
+        ''' this function put vertices of square of the board, in clockwise order '''
+        h = h.reshape((4,2))
+        hnew = np.zeros((4,2),dtype = np.float32)
+        
+        add = h.sum(1)
+        hnew[0] = h[np.argmin(add)]
+        hnew[2] = h[np.argmax(add)]
+        
+        diff = np.diff(h,axis = 1)
+        hnew[1] = h[np.argmin(diff)]
+        hnew[3] = h[np.argmax(diff)]
+    
+        return hnew
+    
+    @staticmethod
+    def fixCap(frame):
+        '''receives frame from webCam and rotates and resizes it to game's width and height'''
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        thresh = cv2.adaptiveThreshold(gray, 255,1,1,5,2)
+        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        image_area = gray.size
+        for i in contours:
+            if cv2.contourArea(i) > image_area/2:
+                peri = cv2.arcLength(i, True)
+                approx = cv2.approxPolyDP(i, 0.02*peri, True)
+                break
+        
+        h = np.array([ [0,0],[GAME_WIDTH,0],[GAME_WIDTH, GAME_HIGHT],[0,GAME_HIGHT] ],np.float32)
+        approx = WebCam.rectify(approx)
+        retval = cv2.getPerspectiveTransform(approx,h)
+        warp = cv2.warpPerspective(frame,retval,(GAME_WIDTH, GAME_HIGHT))
+        return warp
 
 class WatchController(Controller):
     def __init__(self, comPort, deviceId):
@@ -354,7 +386,7 @@ class Player:
 
     def getRobotPositionFromCamera(self):
         """Get Position from camera via opencv. Throw RobotNotFoundError if robot not found."""
-        if DEBUG and not DEBUG_WEBCAM:
+        if DEBUG:
             return self.position
 
         elif DEBUG_WEBCAM:
@@ -364,10 +396,11 @@ class Player:
             maxPosY = 0
             ret, frame = webcam.webCamCapture.read() # ret value true if capture from webCam went good, frame is the picture from the webCam
             if ret == True:
+                newFrame = Webcam.fixCap(frame)
                 if DEUBG_WEBCAM_WITH_WINDOW:
-                    cv2.imshow("WebCam", frame)
-                img = cv2.GaussianBlur(frame, (5,5), 0)
-                img = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+                    cv2.imshow("WebCam", newFrame)
+                img = cv2.GaussianBlur(newFrame, (5,5), 0)
+                img = cv2.cvtColor(newFrame, cv2.COLOR_BGR2HSV)
                 binaryColor = cv2.inRange(img, self.lowerColor, self.upperColor) # #creating a threshold image that contains pixels in between color Upper and Lower
                 contours, hier = cv2.findContours(binaryColor, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
                 if contours:
@@ -496,8 +529,8 @@ class Game:
                 if event.type == pygame.QUIT:
                     exit()
                 elif event.type == pygame.KEYDOWN:
-					if event.key == pygame.K_ESCAPE:
-						exit()
+                    if event.key == pygame.K_ESCAPE:
+                        exit()
 
             if mode == 'pre_round_wait':
                 self.clearSurface()
