@@ -293,36 +293,33 @@ class WebCam:
         return frame
         
     @staticmethod
-    def fixCap(frame, thSense):
-        '''receives frame from webCam and rotates and resizes it to game's width and height'''
-        approx = None
-        contours = None
-        
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        thresh, frame = cv2.threshold(gray, thSense, 255, cv2.THRESH_BINARY)
-        image_area = gray.size
-        contours, hierarchy = cv2.findContours(frame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        
-        if contours == None:
-            return frame
-            
-        for i in contours:
-            if cv2.contourArea(i) > image_area/7:
-                peri = cv2.arcLength(i, True)
-                approx = cv2.approxPolyDP(i, 0.02*peri, True)
-                cv2.drawContours(frame,[approx],0,(0,0,255),2,cv2.CV_AA)
-                if len(approx) == 4:                
-                    break
-        
-        if approx == None or len(approx) != 4:
-            return frame
-            
-        print "Found possible rectangle!"
-        h = np.array([ [0,0],[GAME_WIDTH,0],[GAME_WIDTH, GAME_HIGHT],[0,GAME_HIGHT] ],np.float32)
-        approx = WebCam.rectify(approx)
-        retval = cv2.getPerspectiveTransform(approx,h)
+def fixCap(frame):
+    maxContourArea = 0
+    maxCnt = 0
+    maxApprox = 0
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    thresh = cv2.adaptiveThreshold(gray, 255,1,1,11,2)
+    contours, hier = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    if contours:
+	    for cnt in contours:
+		cntArea = cv2.contourArea(cnt)
+		peri = cv2.arcLength(cnt,True)
+		approx = cv2.approxPolyDP(cnt, 0.02*peri, True)
+		if len(approx) == 4 and cntArea > maxContourArea:
+		    maxContourArea = cntArea
+		    maxCnt = cnt
+		    maxApprox = approx
+
+    if maxContourArea > 0:
+        newSize = np.array([ [0,0],[GAME_WIDTH,0],[GAME_WIDTH, GAME_HIGHT],[0,GAME_HIGHT] ],np.float32)
+        reOrderApprox = WebCam.rectify(maxApprox)
+        retval = cv2.getPerspectiveTransform(reOrderApprox,newSize)
         warp = cv2.warpPerspective(frame,retval,(GAME_WIDTH, GAME_HIGHT))
         return warp
+    
+    return frame
+
         
 
 class WatchController(Controller):
