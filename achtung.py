@@ -314,10 +314,10 @@ class WebCam:
                 if len(approx) == 4:                
                     break
         
-        return frame
         if approx == None or len(approx) != 4:
             return frame
             
+        print "Found possible rectangle!"
         h = np.array([ [0,0],[GAME_WIDTH,0],[GAME_WIDTH, GAME_HIGHT],[0,GAME_HIGHT] ],np.float32)
         approx = WebCam.rectify(approx)
         retval = cv2.getPerspectiveTransform(approx,h)
