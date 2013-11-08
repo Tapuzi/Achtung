@@ -299,17 +299,18 @@ class WebCam:
         contours = None
         
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        image_area = gray.size
         contours, hierarchy = cv2.findContours(gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        
         if contours == None:
             return frame
-        image_area = gray.size
-    
         for i in contours:
-            if cv2.contourArea(i) > image_area/2:
+            if cv2.contourArea(i) > image_area/7:
                 peri = cv2.arcLength(i, True)
                 approx = cv2.approxPolyDP(i, 0.02*peri, True)
-                if len(approx) == 4:                
-                    break
+                cv2.drawContours(frame,[approx],0,(0,255,0),2,cv2.CV_AA)
+                #if len(approx) == 4:                
+                    #break
         
         if approx == None:
             return frame
