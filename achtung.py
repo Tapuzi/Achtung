@@ -235,11 +235,11 @@ class WebCam:
         self.webCamCapture.set(cv2.cv.CV_CAP_PROP_FPS, FPS_LIMIT)
     
     
-    def testRectify(self, sensitivity):
+    def testRectify(self, thSense):
         while True:
             ret, frame = self.webCamCapture.read()
             if ret:
-                frame = self.fixCap(frame, sensitivity)
+                frame = self.fixCap(frame, thSense)
                 cv2.imshow('webcam', frame)
                 k = cv2.waitKey(1)
                 if k == 27:
@@ -293,26 +293,29 @@ class WebCam:
         return frame
         
     @staticmethod
-    def fixCap(frame):
+    def fixCap(frame, thSense):
         '''receives frame from webCam and rotates and resizes it to game's width and height'''
         approx = None
         contours = None
         
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        thresh, frame = cv2.threshold(gray, thSense, 255, cv2.THRESH_BINARY)
         image_area = gray.size
-        contours, hierarchy = cv2.findContours(gray, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, hierarchy = cv2.findContours(frame, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         
         if contours == None:
             return frame
+            
         for i in contours:
             if cv2.contourArea(i) > image_area/7:
                 peri = cv2.arcLength(i, True)
                 approx = cv2.approxPolyDP(i, 0.02*peri, True)
-                cv2.drawContours(frame,[approx],0,(0,255,0),2,cv2.CV_AA)
-                #if len(approx) == 4:                
-                    #break
+                cv2.drawContours(frame,[approx],0,(0,0,255),2,cv2.CV_AA)
+                if len(approx) == 4:                
+                    break
         
-        if approx == None:
+        return frame
+        if approx == None or len(approx) != 4:
             return frame
             
         h = np.array([ [0,0],[GAME_WIDTH,0],[GAME_WIDTH, GAME_HIGHT],[0,GAME_HIGHT] ],np.float32)
