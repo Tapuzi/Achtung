@@ -413,43 +413,50 @@ class Game:
             player.resetTimers()
 
     def do_play_round(self):
+        paused = False
+
         while True:
-            self.handle_events()
+            events = self.handle_events()
+            for event in events:
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_SPACE:
+                        paused = not paused
 
-            for player in self.players_alive[:]:
-                try:
-                    player.updatePosition()
-                    player.updateDirection()
-                except RobotNotFoundError:
-                    self.kill_player(player)
-
-            self.clearSurface()
-            for player in self.players:
-                player.trail.draw()
-                player.draw()
-            self.updateDisplay()
-
-            for player in self.players_alive[:]:
-                if self.playerColidesWithWalls(player):
-                    self.kill_player(player)
-
-                for trail in (player.trail for player in self.players):
-                    if self.playerColidesWithTrail(player, trail):
+            if not paused:
+                for player in self.players_alive[:]:
+                    try:
+                        player.updatePosition()
+                        player.updateDirection()
+                    except RobotNotFoundError:
                         self.kill_player(player)
 
-            # Check end conditions
-            if len(self.players_alive) == 0:
-                self.end_state = 'draw'
-                break
-            elif len(self.players_alive) == 1:
-                self.end_state = 'win'
-                winner = self.players_alive[0]
-                if not DEBUG_SINGLE_PLAYER:
-                    break
+                self.clearSurface()
+                for player in self.players:
+                    player.trail.draw()
+                    player.draw()
+                self.updateDisplay()
 
-            if DEBUG:
-                for player in self.players_alive:
-                    player._move()
+                for player in self.players_alive[:]:
+                    if self.playerColidesWithWalls(player):
+                        self.kill_player(player)
+
+                    for trail in (player.trail for player in self.players):
+                        if self.playerColidesWithTrail(player, trail):
+                            self.kill_player(player)
+
+                # Check end conditions
+                if len(self.players_alive) == 0:
+                    self.end_state = 'draw'
+                    break
+                elif len(self.players_alive) == 1:
+                    self.end_state = 'win'
+                    winner = self.players_alive[0]
+                    if not DEBUG_SINGLE_PLAYER:
+                        break
+
+                if DEBUG:
+                    for player in self.players_alive:
+                        player._move()
 
             self.tick()
 
