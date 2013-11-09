@@ -68,29 +68,28 @@ class WebCam:
         return frame
         
     @staticmethod
-def fixCap(frame):
-    maxContourArea = 0
-    maxCnt = 0
-    maxApprox = 0
-
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.adaptiveThreshold(gray, 255,1,1,11,2)
-    contours, hier = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    if contours:
-	    for cnt in contours:
-		cntArea = cv2.contourArea(cnt)
-		peri = cv2.arcLength(cnt,True)
-		approx = cv2.approxPolyDP(cnt, 0.02*peri, True)
-		if len(approx) == 4 and cntArea > maxContourArea:
-		    maxContourArea = cntArea
-		    maxCnt = cnt
-		    maxApprox = approx
-
-    if maxContourArea > 0:
-        newSize = numpy.array([ [0,0],[GAME_WIDTH,0],[GAME_WIDTH, GAME_HIGHT],[0,GAME_HIGHT] ],numpy.float32)
-        reOrderApprox = WebCam.rectify(maxApprox)
-        retval = cv2.getPerspectiveTransform(reOrderApprox,newSize)
-        warp = cv2.warpPerspective(frame,retval,(GAME_WIDTH, GAME_HIGHT))
-        return warp
-    
-    return frame
+    def fixCap(frame):
+        maxContourArea = 0
+        maxCnt = 0
+        maxApprox = 0
+        
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        thresh = cv2.adaptiveThreshold(gray, 255,1,1,11,2)
+        contours, hier = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            for cnt in contours:
+                cntArea = cv2.contourArea(cnt)
+                peri = cv2.arcLength(cnt,True)
+                approx = cv2.approxPolyDP(cnt, 0.02*peri, True)
+                if len(approx) == 4 and cntArea > maxContourArea:
+                    maxContourArea = cntArea
+                    maxCnt = cnt
+                    maxApprox = approx
+            if maxContourArea > 0:
+                newSize = numpy.array([ [0,0],[GAME_WIDTH,0],[GAME_WIDTH, GAME_HIGHT],[0,GAME_HIGHT] ],numpy.float32)
+                reOrderApprox = WebCam.rectify(maxApprox)
+                retval = cv2.getPerspectiveTransform(reOrderApprox,newSize)
+                warp = cv2.warpPerspective(frame,retval,(GAME_WIDTH, GAME_HIGHT))
+                return warp
+        
+        return frame
