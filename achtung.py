@@ -27,9 +27,6 @@ if DEBUG_WEBCAM:
 ##     - Show game info (Name, scores, round winner etc...)
 ##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
 ##
-## Fixes:
-##     - Fix the trail hole timing issues
-##
 ## Improvements:
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
 ##       or try using http://pygamedraw.wordpress.com/ for trail drawing.
@@ -159,6 +156,7 @@ class Player:
     def reset(self):
         self.alive = True
         self.trail.reset()
+        self._creating_hole = False
 
     def _set_position_and_direction_vector(self, position, direction_vector):
         self.position = position
@@ -166,7 +164,6 @@ class Player:
 
     def resetTimers(self):
         self.resetTimeOfNextHole()
-        self.resetTimeOfHoleEnd()
 
     def resetTimeOfNextHole(self):
         current_time = pygame.time.get_ticks()
