@@ -21,7 +21,7 @@ if DEBUG_WEBCAM:
 
 ##
 ## TODO:
-##     - Split the game modes into separate functions
+##     - Fix the trail hole timing issues
 ##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
 ##     - Add rounds and scores
 ##     - Change the _move function toke time-passed-since last tick into account,
