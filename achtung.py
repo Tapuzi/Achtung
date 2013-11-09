@@ -358,15 +358,38 @@ class Game:
         return events
 
     def start(self):
-        self.mode = 'pre_round_wait'
-
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
         pygame.mixer.music.play(loops=-1)
 
+        while True:
+            self.play_game()
+
+            play_again = self.ask_play_again()
+            if not play_again:
+                break
+
+    def ask_play_again(self):
+        self.clearSurface()
+        print "Play again? (y/n)"
+        # TODO: display on the screen...
+        self.updateDisplay()
+
+        while True:
+            events = self.handle_events()
+            for event in events:
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_y:
+                        return True
+                    elif event.key == pygame.K_n:
+                        return False
+
+            self.tick()
+
+    def play_game(self):
         score_cap = max(len(self.players) - 1, 1) * SCORE_CAP_MULTIPLIER
 
         if DEBUG_SINGLE_PLAYER:
-            round_count = 3
+            round_count = 2
 
         while True:
             self.play_round()
@@ -392,8 +415,6 @@ class Game:
                 round_count -= 1
                 if round_count == 0:
                     break
-
-        print 'Game over'
 
     def play_round(self):
         for player in self.players:
