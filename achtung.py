@@ -315,6 +315,9 @@ class Game:
 
         self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
+        self.mode = None
+        self.end_state = None
+        self.round_number = None
 
     def _randomize_players_positions_and_direction_vectors(self):
         for player in self.players:
@@ -338,8 +341,19 @@ class Game:
         self.explosion_sound.play()
         self.players_alive.remove(player)
 
+    def handle_events(self):
+        events = []
+        for event in pygame.event.get():
+            events.append(event)
+            if event.type == pygame.QUIT:
+                exit()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    exit()
+        return events
+
     def start(self):
-        mode = 'pre_round_wait'
+        self.mode = 'pre_round_wait'
 
         if DEBUG:
             self._randomize_players_positions_and_direction_vectors()
@@ -347,104 +361,124 @@ class Game:
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
         pygame.mixer.music.play(loops=-1)
 
-        round_number = 1
+        self.round_number = 1
         while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    exit()
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_ESCAPE:
-                        exit()
-
-            if mode == 'pre_round_wait':
-                self.clearSurface()
-                for player in self.players:
-                    player.updatePosition()
-                    player.draw()
-                self.updateDisplay()
-
-                pressed_keys = pygame.key.get_pressed()
-                if pressed_keys[pygame.K_SPACE] or pressed_keys[pygame.K_RETURN]:
-                    mode = 'pre_round_start'
-
-            elif mode == 'pre_round_start':
-                self.start_beeps_sound.play()
-                sound_length = self.start_beeps_sound.get_length()
-                # TODO: display on the Screen 3, 2, 1, Begin
-                pygame.time.wait(int(sound_length * 1000))
-
-                pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_NORMAL)
-
-                self.begin_sound.play()
-                for player in self.players:
-                    player.resetTimers()
-                mode = 'round'
-
-            elif mode == 'round':
-                for player in self.players_alive[:]:
-                    try:
-                        player.updatePosition()
-                        player.updateDirection()
-                    except RobotNotFoundError:
-                        self.kill_player(player)
-
-                self.clearSurface()
-                for player in self.players:
-                    player.trail.draw()
-                    player.draw()
-                self.updateDisplay()
-
-                for player in self.players_alive[:]:
-                    if self.playerColidesWithWalls(player):
-                        self.kill_player(player)
-
-                    for trail in (player.trail for player in self.players):
-                        if self.playerColidesWithTrail(player, trail):
-                            self.kill_player(player)
-
-                # Check end conditions
-                if len(self.players_alive) == 0:
-                    end_state = 'draw'
-                    mode = 'round_end'
-                elif len(self.players_alive) == 1:
-                    end_state = 'win'
-                    winner = self.players_alive[0]
-                    if not DEBUG_SINGLE_PLAYER:
-                        mode = 'round_end'
-
-                if DEBUG:
-                    for player in self.players_alive:
-                        player._move()
-            elif mode == 'round_end':
-                if end_state == 'draw':
-                    message = 'Draw.'
-                elif end_state == 'win':
-                    message = '%s is he Winner!' % winner.color.name
-                else:
-                    message = 'WTF?'
-
-                print message
-
-                pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
-
-                if round_number < NUMBER_OF_ROUNDS:
-                    round_number += 1
-                    for player in self.players:
-                        player.reset()
-                    self.players_alive = self.players[:]
-                    if DEBUG:
-                        self._randomize_players_positions_and_direction_vectors()
-                    mode = 'pre_round_wait'
-                else:
-                    print 'Game over'
-                    break
+            if self.mode == 'pre_round_wait':
+                self.pre_round_wait()
+            elif self.mode == 'pre_round_start':
+                self.pre_round_start()
+            elif self.mode == 'round':
+                self.round()
+            elif self.mode == 'round_end':
+                self.round_end()
             else:
                 # Unknown state
                 assert False
 
             self.tick()
 
+    def pre_round_wait(self):
+        while True:
+            self.handle_events()
 
+            self.clearSurface()
+            for player in self.players:
+                player.updatePosition()
+                player.draw()
+            self.updateDisplay()
+
+            pressed_keys = pygame.key.get_pressed()
+            if pressed_keys[pygame.K_SPACE] or pressed_keys[pygame.K_RETURN]:
+                self.mode = 'pre_round_start'
+                break
+
+            self.tick()
+
+    def pre_round_start(self):
+        sound_length = self.start_beeps_sound.get_length()
+        current_time = pygame.time.get_ticks()
+        sound_end_time = current_time + int(sound_length * 1000)
+        self.start_beeps_sound.play()
+        while True:
+            self.handle_events()
+            # TODO: display on the Screen 3, 2, 1, Begin!
+            if pygame.time.get_ticks() >= sound_end_time:
+                break
+            self.tick()
+
+        pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_NORMAL)
+
+        self.begin_sound.play()
+        for player in self.players:
+            player.resetTimers()
+        self.mode = 'round'
+
+    def round(self):
+        while True:
+            self.handle_events()
+
+            for player in self.players_alive[:]:
+                try:
+                    player.updatePosition()
+                    player.updateDirection()
+                except RobotNotFoundError:
+                    self.kill_player(player)
+
+            self.clearSurface()
+            for player in self.players:
+                player.trail.draw()
+                player.draw()
+            self.updateDisplay()
+
+            for player in self.players_alive[:]:
+                if self.playerColidesWithWalls(player):
+                    self.kill_player(player)
+
+                for trail in (player.trail for player in self.players):
+                    if self.playerColidesWithTrail(player, trail):
+                        self.kill_player(player)
+
+            # Check end conditions
+            if len(self.players_alive) == 0:
+                self.end_state = 'draw'
+                self.mode = 'round_end'
+                break
+            elif len(self.players_alive) == 1:
+                self.end_state = 'win'
+                winner = self.players_alive[0]
+                if not DEBUG_SINGLE_PLAYER:
+                    self.mode = 'round_end'
+                    break
+
+            if DEBUG:
+                for player in self.players_alive:
+                    player._move()
+
+            self.tick()
+
+    def round_end(self):
+        if self.end_state == 'draw':
+            message = 'Draw.'
+        elif self.end_state == 'win':
+            message = '%s is he Winner!' % winner.color.name
+        else:
+            message = 'WTF?'
+
+        print message
+
+        pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
+
+        if self.round_number < NUMBER_OF_ROUNDS:
+            self.round_number += 1
+            for player in self.players:
+                player.reset()
+            self.players_alive = self.players[:]
+            if DEBUG:
+                self._randomize_players_positions_and_direction_vectors()
+            self.mode = 'pre_round_wait'
+        else:
+            print 'Game over'
+            exit()
 
     def clearSurface(self):
         self.surface.fill((255, 255, 255))
