@@ -375,8 +375,6 @@ class Game:
                 # Unknown state
                 assert False
 
-            self.tick()
-
     def pre_round_wait(self):
         while True:
             self.handle_events()
