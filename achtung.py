@@ -21,11 +21,15 @@ if DEBUG_WEBCAM:
 
 ##
 ## TODO:
-##     - Fix the trail hole timing issues
+##     - Add scores
+##     - Add bonuses (speed up/down, control reverse, players swap, electrify etc...)
+##     - Add black frame around board edges in size of game's width and height
 ##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
-##     - Add rounds and scores
+##
 ##     - Change the _move function toke time-passed-since last tick into account,
 ##       so the players will always move the same distance, even if FPS drops.
+##     - Fix the trail hole timing issues
+##
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
 ##       or try using http://pygamedraw.wordpress.com/ for trail drawing.
 ##     - Profile the game and improve performance (it seems that with multiple players / bigger window,
@@ -33,9 +37,6 @@ if DEBUG_WEBCAM:
 ##       - Try to do things in parallel? (collision detection for example)
 ##       - Try to limit the mask overlap test are to that of the player's position (and radius)
 ##       - Maybe just use a lower target framerate
-##     - Add a mode in between round that allows to drive robots back to the middle of the board?
-##     - Add bonuses (speed up/down, control reverse, players swap, electrify etc...)
-##     - Add black frame around board edges in size of game's width and height
 ##
 
 #
