@@ -17,7 +17,9 @@ DEUBG_WEBCAM_WITH_WINDOW = False
 DEBUG_KEYBOARD = False
 DEBUG_KEYBOARD_TWO_PLAYERS = False
 DEBUG_MOUSE = False
+DEBUG_TRAIL = False
 FULLSCREEN = True
+
 
 #
 # Debugger specific
@@ -31,6 +33,7 @@ try:
         DEBUG_KEYBOARD = True
         DEBUG_KEYBOARD_TWO_PLAYERS = False
         DEBUG_MOUSE = False
+        DEBUG_TRAIL = True
         FULLSCREEN = False
     elif DEBUGGER == 'X-reX':
         pass

@@ -83,8 +83,6 @@ GAME_HIGHT = 500
 
 FPS_LIMIT = 100
 
-OVERLAP_COLLISION_THRESHOLD = 10
-
 TIME_TO_HOLE_MIN = 1.25 * 1000
 TIME_TO_HOLE_MAX = 1.75 * 1000
 HOLE_TIME_INTERVAL = 0.3 * 1000
@@ -98,6 +96,10 @@ BACKGROUND_MUSIC_VOLUME_NORMAL = 0.9
 ROTATION_SPEED = 180 # Degrees per second
 MOVEMENT_SPEED = 120 # pixels per second
 
+TRAIL_NON_COLLIDING_LAST_POINTS = 60
+
+CLEAR_COLOR = (0, 0, 0, 0)
+
 #
 # Classes
 #
@@ -110,39 +112,28 @@ class Trail:
         self.game_surface = game_surface
         self.surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
         self.color = color
-        self.last_point = None
-        self.last_point_surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
+        self.last_points = []
+        self.self_collision_surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
 
     def reset(self):
-        self.last_point = None
-        self.last_point_surface.fill((0, 0, 0, 0))
-        self.surface.fill((0, 0, 0, 0))
+        self.last_points = []
+        self.self_collision_surface.fill(CLEAR_COLOR)
+        self.surface.fill(CLEAR_COLOR)
 
     def addPoint(self, point):
-        int_point = (int(point.x), int(point.y))
+        int_point = (int(round(point.x)), int(round(point.y)))
+        pygame.draw.circle(self.surface, self.color.value, int_point, ROBOT_RADIUS)
 
-        if self.last_point is not None:
-            # Clear current point to avoid collision detection issues
-            pygame.draw.circle(self.last_point_surface, (0, 0, 0, 0), int_point, ROBOT_RADIUS)
-            self.surface.blit(self.last_point_surface, (0, 0))
-
-        self.last_point = point
-        self.last_point_surface.fill((0, 0, 0, 0))
-        pygame.draw.circle(self.last_point_surface, self.color.value, int_point, ROBOT_RADIUS)
-
-    def addInvisiblePoint(self, point):
-        if self.last_point is not None:
-            int_point = (int(point.x), int(point.y))
-            last_point_int = (int(self.last_point.x), int(self.last_point.y))
-
-            self.last_point_surface.fill((0, 0, 0, 0))
-            pygame.draw.circle(self.last_point_surface, self.color.value, last_point_int, ROBOT_RADIUS)
-
-            pygame.draw.circle(self.last_point_surface, (0, 0, 0, 0), int_point, ROBOT_RADIUS)
-            self.surface.blit(self.last_point_surface, (0, 0))
+        self.last_points.append(int_point)
+        if len(self.last_points) > TRAIL_NON_COLLIDING_LAST_POINTS:
+            first_last_point = self.last_points.pop(0)
+            self_collision_trail_color = (128, 0, 128) if DEBUG_TRAIL else self.color.value
+            pygame.draw.circle(self.self_collision_surface, self_collision_trail_color, first_last_point, ROBOT_RADIUS)
 
     def draw(self):
         self.game_surface.blit(self.surface, (0, 0))
+        if DEBUG_TRAIL:
+            self.game_surface.blit(self.self_collision_surface, (0, 0))
 
 
 class Player:
@@ -216,7 +207,7 @@ class Player:
         self.position += (self.direction_vector * movement)
 
     def draw(self):
-        self.game_surface.blit(self.surface, (0,0))
+        self.game_surface.blit(self.surface, (0, 0))
 
     def getRobotPositionFromCamera(self):
         """Get Position from camera via opencv. Throw RobotNotFoundError if robot not found."""
@@ -252,18 +243,16 @@ class Player:
                 if maxArea == 0:
                     raise RobotNotFoundError()
 
-    def updatePosition(self):
+    def updatePosition(self, add_to_trail=False):
         self.position = self.getRobotPositionFromCamera()
-        self.surface.fill((0, 0 ,0, 0))
+        self.surface.fill(CLEAR_COLOR)
         int_position = (int(self.position.x), int(self.position.y))
         if DEBUG:
             color = (90, 180, 90)
         else:
             color = self.color.value
         pygame.draw.circle(self.surface, color, int_position, ROBOT_RADIUS)
-        if self.creatingHole():
-           self.trail.addInvisiblePoint(Vec2d(self.position))
-        else:
+        if add_to_trail and not self.creatingHole():
             self.trail.addPoint(Vec2d(self.position))
 
     def updateDirection(self):
@@ -325,7 +314,6 @@ class Game:
 
         self.players = [Player(self.surface, color, controller, self.clock) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
-        self.end_state = None
 
     def _randomize_players_positions_and_direction_vectors(self):
         for player in self.players:
@@ -484,7 +472,7 @@ class Game:
             if not paused:
                 for player in self.players_alive[:]:
                     try:
-                        player.updatePosition()
+                        player.updatePosition(add_to_trail=True)
                         player.updateDirection()
                     except RobotNotFoundError:
                         self.kill_player(player)
@@ -499,7 +487,11 @@ class Game:
                     if self.playerColidesWithWalls(player):
                         self.kill_player(player)
 
-                    for trail in (player.trail for player in self.players):
+                    if self.playerColidesWithItself(player):
+                        self.kill_player(player)
+
+                    # Check other players' trails
+                    for trail in (p.trail for p in self.players if p != player):
                         if self.playerColidesWithTrail(player, trail):
                             self.kill_player(player)
 
@@ -532,15 +524,25 @@ class Game:
         any_wall_collision = left_wall_collision or top_wall_collision or right_wall_collision or bottom_wall_collision
         return any_wall_collision
 
+    def playerColidesWithItself(self, player):
+        player_mask = pygame.mask.from_surface(player.surface)
+        trail_mask = pygame.mask.from_surface(player.trail.self_collision_surface)
+
+        overlap_point = trail_mask.overlap(player_mask, (0, 0))
+        if overlap_point is None:
+            return False
+        else:
+            return True
+
     def playerColidesWithTrail(self, player, trail):
         player_mask = pygame.mask.from_surface(player.surface)
         trail_mask = pygame.mask.from_surface(trail.surface)
 
-        overlapping_pixels = trail_mask.overlap_area(player_mask, (0, 0))
-        if overlapping_pixels > OVERLAP_COLLISION_THRESHOLD:
-            return True
-        else:
+        overlap_point = trail_mask.overlap(player_mask, (0, 0))
+        if overlap_point is None:
             return False
+        else:
+            return True
 
     def tick(self):
         """Wait for the next game tick"""
