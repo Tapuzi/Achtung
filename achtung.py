@@ -28,8 +28,6 @@ if DEBUG_WEBCAM:
 ##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
 ##
 ## Fixes:
-##     - Change the _move function toke time-passed-since last tick into account,
-##       so the players will always move the same distance, even if FPS drops.
 ##     - Fix the trail hole timing issues
 ##
 ## Improvements:
@@ -96,6 +94,10 @@ SCORE_CAP_MULTIPLIER = 5
 BACKGROUND_MUSIC_VOLUME_LOW = 0.3
 BACKGROUND_MUSIC_VOLUME_NORMAL = 0.9
 
+# Debug speeds
+ROTATION_SPEED = 180 # Degrees per second
+MOVEMENT_SPEED = 120 # pixels per second
+
 #
 # Classes
 #
@@ -144,7 +146,7 @@ class Trail:
 
 
 class Player:
-    def __init__(self, game_surface, color, controller):
+    def __init__(self, game_surface, color, controller, clock):
         self.game_surface = game_surface
         self.surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
         self.color = color
@@ -155,6 +157,7 @@ class Player:
         self.position = None
         self.trail = Trail(self.game_surface, color)
         self.controller = controller
+        self.clock = clock
 
         self._time_of_next_hole = None
         self._time_of_hole_end = None
@@ -201,14 +204,16 @@ class Player:
 
     def _move(self):
         assert DEBUG
-        ROTATION_DEGREES = 3.0
-        SPEED = 2
-        if self.direction == LEFT:
-            self.direction_vector.rotate(-ROTATION_DEGREES)
-        elif self.direction == RIGHT:
-            self.direction_vector.rotate(ROTATION_DEGREES)
+        last_tick_duration = self.clock.get_time() / 1000.0
+        rotation = ROTATION_SPEED * last_tick_duration
+        movement = MOVEMENT_SPEED * last_tick_duration
 
-        self.position += (self.direction_vector * SPEED)
+        if self.direction == LEFT:
+            self.direction_vector.rotate(-rotation)
+        elif self.direction == RIGHT:
+            self.direction_vector.rotate(rotation)
+
+        self.position += (self.direction_vector * movement)
 
     def draw(self):
         self.game_surface.blit(self.surface, (0,0))
@@ -318,7 +323,7 @@ class Game:
         else:
             self.controllers = [WatchController(port, id) for port, id in zip(COMPORTS, IDS)]
 
-        self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, self.controllers)]
+        self.players = [Player(self.surface, color, controller, self.clock) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
         self.end_state = None
 
