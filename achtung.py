@@ -315,7 +315,6 @@ class Game:
 
         self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
-        self.mode = None
         self.end_state = None
         self.round_number = None
 
@@ -355,25 +354,29 @@ class Game:
     def start(self):
         self.mode = 'pre_round_wait'
 
-        if DEBUG:
-            self._randomize_players_positions_and_direction_vectors()
-
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
         pygame.mixer.music.play(loops=-1)
 
-        self.round_number = 1
-        while True:
-            if self.mode == 'pre_round_wait':
-                self.pre_round_wait()
-            elif self.mode == 'pre_round_start':
-                self.pre_round_start()
-            elif self.mode == 'round':
-                self.round()
-            elif self.mode == 'round_end':
-                self.round_end()
-            else:
-                # Unknown state
-                assert False
+        for round_number in range(1, NUMBER_OF_ROUNDS + 1):
+            self.round_number = round_number
+            self.play_round()
+
+        print 'Game over'
+
+    def play_round(self):
+        for player in self.players:
+            player.reset()
+        self.players_alive = self.players[:]
+
+        if DEBUG:
+            self._randomize_players_positions_and_direction_vectors()
+
+        self.pre_round_wait()
+        self.pre_round_start()
+        self.do_play_round()
+        self.round_end()
+
+
 
     def pre_round_wait(self):
         while True:
@@ -387,7 +390,6 @@ class Game:
 
             pressed_keys = pygame.key.get_pressed()
             if pressed_keys[pygame.K_SPACE] or pressed_keys[pygame.K_RETURN]:
-                self.mode = 'pre_round_start'
                 break
 
             self.tick()
@@ -409,9 +411,8 @@ class Game:
         self.begin_sound.play()
         for player in self.players:
             player.resetTimers()
-        self.mode = 'round'
 
-    def round(self):
+    def do_play_round(self):
         while True:
             self.handle_events()
 
@@ -439,13 +440,11 @@ class Game:
             # Check end conditions
             if len(self.players_alive) == 0:
                 self.end_state = 'draw'
-                self.mode = 'round_end'
                 break
             elif len(self.players_alive) == 1:
                 self.end_state = 'win'
                 winner = self.players_alive[0]
                 if not DEBUG_SINGLE_PLAYER:
-                    self.mode = 'round_end'
                     break
 
             if DEBUG:
@@ -465,18 +464,6 @@ class Game:
         print message
 
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
-
-        if self.round_number < NUMBER_OF_ROUNDS:
-            self.round_number += 1
-            for player in self.players:
-                player.reset()
-            self.players_alive = self.players[:]
-            if DEBUG:
-                self._randomize_players_positions_and_direction_vectors()
-            self.mode = 'pre_round_wait'
-        else:
-            print 'Game over'
-            exit()
 
     def clearSurface(self):
         self.surface.fill((255, 255, 255))
