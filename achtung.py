@@ -132,7 +132,6 @@ class Trail:
         if DEBUG_TRAIL:
             self.game_surface.blit(self.self_collision_surface, (0, 0))
 
-
 class Player:
     def __init__(self, game_surface, color, controller, clock):
         self.game_surface = game_surface
@@ -147,48 +146,44 @@ class Player:
         self.controller = controller
         self.clock = clock
 
-        self._time_of_next_hole = None
-        self._time_of_hole_end = None
-        self._creating_hole = False
-        self.resetTimers()
+        self.time_to_next_hole = 0
+        self.time_to_hole_end = 0
+        self.creating_hole = False
+        self.resetTimeToNextHole()
         self.score = 0
 
     def reset(self):
         self.alive = True
         self.trail.reset()
-        self._creating_hole = False
+        self.creating_hole = False
+        self.resetTimeToNextHole()
 
     def _set_position_and_direction_vector(self, position, direction_vector):
         self.position = position
         self.direction_vector = direction_vector
 
-    def resetTimers(self):
-        self.resetTimeOfNextHole()
+    def resetTimeToNextHole(self):
+        self.time_to_next_hole = random.uniform(TIME_TO_HOLE_MIN, TIME_TO_HOLE_MAX)
 
-    def resetTimeOfNextHole(self):
-        current_time = pygame.time.get_ticks()
-        time_to_next_hole = random.uniform(TIME_TO_HOLE_MIN, TIME_TO_HOLE_MAX)
-        self._time_of_next_hole = current_time + time_to_next_hole
-
-    def resetTimeOfHoleEnd(self):
-        current_time = pygame.time.get_ticks()
-        self._time_of_hole_end = current_time + HOLE_TIME_INTERVAL
+    def resetTimeToHoleEnd(self):
+        self.time_to_hole_end = HOLE_TIME_INTERVAL
 
     def creatingHole(self):
         """Return True/False whether the player is creating a hole right now or not"""
-        current_time = pygame.time.get_ticks()
+        last_tick_duration = self.clock.get_time()
 
-        if self._creating_hole:
-            if current_time >= self._time_of_hole_end:
-                self._creating_hole = False
-                self.resetTimeOfNextHole()
+        if self.creating_hole:
+            self.time_to_hole_end -= last_tick_duration
+            if self.time_to_hole_end <= 0:
+                self.creating_hole = False
+                self.resetTimeToNextHole()
         else:
-            if current_time >= self._time_of_next_hole:
-                self._creating_hole = True
-                self.resetTimeOfHoleEnd()
+            self.time_to_next_hole -= last_tick_duration
+            if self.time_to_next_hole <= 0:
+                self.creating_hole = True
+                self.resetTimeToHoleEnd()
 
-        return self._creating_hole
-
+        return self.creating_hole
 
     def _move(self):
         assert DEBUG
@@ -455,8 +450,6 @@ class Game:
         paused = False
 
         self.begin_sound.play()
-        for player in self.players:
-            player.resetTimers()
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_NORMAL)
 
         while True:

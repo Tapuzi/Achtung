@@ -33,7 +33,7 @@ try:
         DEBUG_KEYBOARD = True
         DEBUG_KEYBOARD_TWO_PLAYERS = False
         DEBUG_MOUSE = False
-        DEBUG_TRAIL = True
+        DEBUG_TRAIL = False
         FULLSCREEN = False
     elif DEBUGGER == 'X-reX':
         pass
