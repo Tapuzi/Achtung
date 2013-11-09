@@ -21,7 +21,6 @@ if DEBUG_WEBCAM:
 
 ##
 ## TODO:
-##     - Add scores
 ##     - Add bonuses (speed up/down, control reverse, players swap, electrify etc...)
 ##     - Add a margin where game info is displayed
 ##     - Add black frame around board edges
