@@ -23,13 +23,17 @@ if DEBUG_WEBCAM:
 ## TODO:
 ##     - Add scores
 ##     - Add bonuses (speed up/down, control reverse, players swap, electrify etc...)
-##     - Add black frame around board edges in size of game's width and height
+##     - Add a margin where game info is displayed
+##     - Add black frame around board edges
+##     - Show game info (Name, scores, round winner etc...)
 ##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
 ##
+## Fixes:
 ##     - Change the _move function toke time-passed-since last tick into account,
 ##       so the players will always move the same distance, even if FPS drops.
 ##     - Fix the trail hole timing issues
 ##
+## Improvements:
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
 ##       or try using http://pygamedraw.wordpress.com/ for trail drawing.
 ##     - Profile the game and improve performance (it seems that with multiple players / bigger window,
@@ -88,7 +92,7 @@ TIME_TO_HOLE_MIN = 1.25 * 1000
 TIME_TO_HOLE_MAX = 1.75 * 1000
 HOLE_TIME_INTERVAL = 0.3 * 1000
 
-NUMBER_OF_ROUNDS = 3
+SCORE_CAP_MULTIPLIER = 5
 
 BACKGROUND_MUSIC_VOLUME_LOW = 0.3
 BACKGROUND_MUSIC_VOLUME_NORMAL = 0.9
@@ -157,6 +161,7 @@ class Player:
         self._time_of_hole_end = None
         self._creating_hole = False
         self.resetTimers()
+        self.score = 0
 
     def reset(self):
         self.alive = True
@@ -317,7 +322,6 @@ class Game:
         self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
         self.end_state = None
-        self.round_number = None
 
     def _randomize_players_positions_and_direction_vectors(self):
         for player in self.players:
@@ -340,6 +344,8 @@ class Game:
         player.die()
         self.explosion_sound.play()
         self.players_alive.remove(player)
+        for player in self.players_alive:
+            player.score += 1
 
     def handle_events(self):
         events = []
@@ -358,9 +364,35 @@ class Game:
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
         pygame.mixer.music.play(loops=-1)
 
-        for round_number in range(1, NUMBER_OF_ROUNDS + 1):
-            self.round_number = round_number
+        score_cap = max(len(self.players) - 1, 1) * SCORE_CAP_MULTIPLIER
+
+        if DEBUG_SINGLE_PLAYER:
+            round_count = 3
+
+        while True:
             self.play_round()
+
+            winners = [p for p in self.players if p.score >= score_cap]
+            if len(winners) > 0:
+                winner = None
+                if len(winners) == 1:
+                    winner = winners[0]
+                else:
+                    # more the one player reached score cap
+                    winners.sort(key = lambda player: player.score)
+                    if winners[0] > winners[1]:
+                        winner = winners[0]
+                    else:
+                        # play another round, until there is a final winner
+                        pass
+                if winner is not None:
+                    print 'The winner is %s!' % winner.color.name
+                    break
+
+            if DEBUG_SINGLE_PLAYER:
+                round_count -= 1
+                if round_count == 0:
+                    break
 
         print 'Game over'
 
@@ -375,9 +407,11 @@ class Game:
         self.pre_round_wait()
         self.pre_round_start()
         self.do_play_round()
-        self.round_end()
 
-
+        #TODO: replace with HUD updates
+        for player in self.players:
+            print ''
+            print '%s: %d' % (player.color.name, player.score)
 
     def pre_round_wait(self):
         while True:
@@ -407,14 +441,13 @@ class Game:
                 break
             self.tick()
 
-        pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_NORMAL)
+    def do_play_round(self):
+        paused = False
 
         self.begin_sound.play()
         for player in self.players:
             player.resetTimers()
-
-    def do_play_round(self):
-        paused = False
+        pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_NORMAL)
 
         while True:
             events = self.handle_events()
@@ -446,13 +479,8 @@ class Game:
                             self.kill_player(player)
 
                 # Check end conditions
-                if len(self.players_alive) == 0:
-                    self.end_state = 'draw'
-                    break
-                elif len(self.players_alive) == 1:
-                    self.end_state = 'win'
-                    winner = self.players_alive[0]
-                    if not DEBUG_SINGLE_PLAYER:
+                if len(self.players_alive) <= 1:
+                    if not (DEBUG_SINGLE_PLAYER and len(self.players_alive) == 1):
                         break
 
                 if DEBUG:
@@ -460,16 +488,6 @@ class Game:
                         player._move()
 
             self.tick()
-
-    def round_end(self):
-        if self.end_state == 'draw':
-            message = 'Draw.'
-        elif self.end_state == 'win':
-            message = '%s is he Winner!' % winner.color.name
-        else:
-            message = 'WTF?'
-
-        print message
 
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
 
