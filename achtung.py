@@ -4,12 +4,13 @@ Achtung!
 import pygame
 from collections import namedtuple
 from vec2d import Vec2d
-import uberclock02 as uberclock
 import random
-import numpy as np
+import numpy
 import os
 from os import path
 
+from WebCam import *
+from Controllers import *
 
 OPEN_CV = True
 if OPEN_CV:
@@ -78,19 +79,15 @@ IMAGE_FILE_NAMES_TO_FILES = {path.basename(file): file for file in IMAGE_FILES}
 Color = namedtuple('Color', ['name', 'value', 'value_range'])
 
 COLORS = [
-    Color('Black', (0, 0, 0), (np.array([0, 0, 0],np.uint8),np.array([1, 1, 1],np.uint8))),
-    Color('Red', (255, 0, 0), (np.array([160, 160, 60],np.uint8),np.array([180, 255, 255],np.uint8))),
-    Color('Green', (0, 255, 0), (np.array([38, 140, 60],np.uint8), np.array([75, 255, 255],np.uint8))),
-    Color('Blue', (0, 0, 255), (np.array([75, 80, 80],np.uint8), np.array([130, 255, 255],np.uint8))),
-    Color('Yellow', (255, 255, 0), (np.array([20, 100, 100],np.uint8), np.array([38, 255, 255],np.uint8))),
+    Color('Black', (0, 0, 0), (numpy.array([0, 0, 0],numpy.uint8),numpy.array([1, 1, 1],numpy.uint8))),
+    Color('Red', (255, 0, 0), (numpy.array([160, 160, 60],numpy.uint8),numpy.array([180, 255, 255],numpy.uint8))),
+    Color('Green', (0, 255, 0), (numpy.array([38, 140, 60],numpy.uint8), numpy.array([75, 255, 255],numpy.uint8))),
+    Color('Blue', (0, 0, 255), (numpy.array([75, 80, 80],numpy.uint8), numpy.array([130, 255, 255],numpy.uint8))),
+    Color('Yellow', (255, 255, 0), (numpy.array([20, 100, 100],numpy.uint8), numpy.array([38, 255, 255],numpy.uint8))),
 ]
 
 IDS = ['1337' for color in COLORS]
 COMPORTS = ['COM10']
-
-LEFT = -1
-STRAIGHT = 0
-RIGHT = 1
 
 ROBOT_RADIUS = 7
 COLLISTION_RADIUS = ROBOT_RADIUS - 2
@@ -156,216 +153,6 @@ class Trail:
 
     def draw(self):
         self.game_surface.blit(self.surface, (0, 0))
-
-class Controller:
-    """Abstract base class for controllers"""
-    def getDirection(self):
-        raise NotImplementedError()
-
-class MouseController(Controller):
-    def __init__(self):
-        pass
-
-    def getDirection(self):
-        pressed_keys = pygame.mouse.get_pressed()
-
-        left_pressed = pressed_keys[0]
-        right_pressed = pressed_keys[2]
-
-        if left_pressed and not right_pressed:
-            direction = LEFT
-        elif not left_pressed and right_pressed:
-            direction = RIGHT
-        elif not left_pressed and not right_pressed:
-            direction = STRAIGHT
-        elif left_pressed and right_pressed:
-            direction = STRAIGHT
-        else:
-            raise Exception('wtf')
-
-        return direction
-
-class GamepadController(Controller):
-    # TODO: Implement if we want to add support, in case multiple Watches don't work well.
-    def __init__(self):
-        pass
-
-    def getDirection(self):
-        pass
-
-class TouchpadController(Controller):
-    # TODO: If we get really desperate about controllers,
-    #       we could implement a controller from the laptop's touchpad
-    #       by assigning the left side of it to LEFT and right side to RIGHT.
-    def __init__(self):
-        pass
-
-    def getDirection(self):
-        pass
-
-class KeyboardController(Controller):
-    def __init__(self, left_key, right_key):
-        self.left_key = left_key
-        self.right_key = right_key
-
-    def getDirection(self):
-        pressed_keys = pygame.key.get_pressed()
-
-        left_pressed = pressed_keys[self.left_key]
-        right_pressed = pressed_keys[self.right_key]
-
-        if left_pressed and not right_pressed:
-            direction = LEFT
-        elif not left_pressed and right_pressed:
-            direction = RIGHT
-        elif not left_pressed and not right_pressed:
-            direction = STRAIGHT
-        elif left_pressed and right_pressed:
-            direction = STRAIGHT
-        else:
-            raise Exception('wtf')
-
-        return direction
-
-class WebCam:
-    def __init__(self):
-        self.webCamCapture = cv2.VideoCapture(0)
-        self.webCamCapture.set(cv.CV_CAP_PROP_FRAME_WIDTH, GAME_WIDTH)
-        self.webCamCapture.set(cv.CV_CAP_PROP_FRAME_HEIGHT, GAME_HIGHT)
-        self.webCamCapture.set(cv2.cv.CV_CAP_PROP_FPS, FPS_LIMIT)
-    
-    
-    def testRectify(self, thSense):
-        while True:
-            ret, frame = self.webCamCapture.read()
-            if ret:
-                frame = self.fixCap(frame, thSense)
-                cv2.imshow('webcam', frame)
-                k = cv2.waitKey(1)
-                if k == 27:
-                    break
-        cv2.destroyAllWindows()
-    
-    def testContours(self):
-        while True:
-            ret, frame = self.webCamCapture.read()
-            if ret:
-                frame = self.showContours(frame)
-                cv2.imshow('webcam', frame)
-                k = cv2.waitKey(1)
-                if k == 27:
-                    break
-        cv2.destroyAllWindows()
-    
-    @staticmethod
-    def rectify(h):
-        ''' this function put vertices of square of the board, in clockwise order '''
-        h = h.reshape((4,2))
-        hnew = np.zeros((4,2),dtype = np.float32)
-        
-        add = h.sum(1)
-        hnew[0] = h[np.argmin(add)]
-        hnew[2] = h[np.argmax(add)]
-        
-        diff = np.diff(h,axis = 1)
-        hnew[1] = h[np.argmin(diff)]
-        hnew[3] = h[np.argmax(diff)]
-    
-        return hnew
-    
-    @staticmethod
-    def showContours(frame):
-        '''Spots contours and returns a frame with the spotted contours'''
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        thresh = cv2.adaptiveThreshold(gray, 255,1,1,5,2)
-        contours = None
-        contours, hierarchy = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        
-        if contours == None:
-            return frame
-        image_area = gray.size
-        
-        print len(contours)
-        for i in contours:
-            if cv2.contourArea(i) > image_area/2:
-                cv2.drawContours(frame,contours,1,(0,255,0),3)
-        
-        return frame
-        
-    @staticmethod
-def fixCap(frame):
-    maxContourArea = 0
-    maxCnt = 0
-    maxApprox = 0
-
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    thresh = cv2.adaptiveThreshold(gray, 255,1,1,11,2)
-    contours, hier = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-    if contours:
-	    for cnt in contours:
-		cntArea = cv2.contourArea(cnt)
-		peri = cv2.arcLength(cnt,True)
-		approx = cv2.approxPolyDP(cnt, 0.02*peri, True)
-		if len(approx) == 4 and cntArea > maxContourArea:
-		    maxContourArea = cntArea
-		    maxCnt = cnt
-		    maxApprox = approx
-
-    if maxContourArea > 0:
-        newSize = np.array([ [0,0],[GAME_WIDTH,0],[GAME_WIDTH, GAME_HIGHT],[0,GAME_HIGHT] ],np.float32)
-        reOrderApprox = WebCam.rectify(maxApprox)
-        retval = cv2.getPerspectiveTransform(reOrderApprox,newSize)
-        warp = cv2.warpPerspective(frame,retval,(GAME_WIDTH, GAME_HIGHT))
-        return warp
-    
-    return frame
-
-        
-
-class WatchController(Controller):
-    def __init__(self, comPort, deviceId):
-        self.deviceId = deviceId
-        self.lastMessage = {'buttons': 0, 'temp': 0, 'accel_z': 0, 'accel_x': 0, 'accel_y': 0, 'alt': 0}
-        # Connect to the watch
-        self.ap_socket = uberclock.accessPointSocket(comPort)
-        # Turn on watch
-        self.ap_socket.start()
-        # Create a device connection object and link it to the watch socket
-        self.device_connection = uberclock.deviceConnection(self.ap_socket, deviceId)
-        try:
-            print "Waiting for connection of id %s..." % deviceId
-            self.device_connection.connect_to_device() # NOTE: Blocking!
-        except KeyboardInterrupt:
-            raise Exception("No controller")
-
-
-    def getState(self):
-        # Make sure device is connected
-        if not self.device_connection.is_device_connected():
-            raise Exception("Device Disconnected: %s" % deviceId)
-
-        # Get the latest state
-        messages = self.device_connection.receive()
-
-        if None == messages:
-            return self.lastMessage
-
-        self.lastMessage = messages[-1]
-        return self.lastMessage
-
-    def getOrientation(self):
-        state = self.getState()
-        print state
-        if 20 > state['accel_x'] > 3:
-            return LEFT
-
-        if 238 < state['accel_x'] < 255:
-            return RIGHT
-
-        return STRAIGHT
-
-    def getDirection(self):
-        return self.getOrientation()
 
 
 class Player:
