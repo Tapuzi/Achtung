@@ -1,6 +1,8 @@
 """
 Achtung!
 """
+from flags import *
+
 import pygame
 from collections import namedtuple
 from vec2d import Vec2d
@@ -9,11 +11,11 @@ import numpy
 import os
 from os import path
 
-from WebCam import *
+if DEBUG_WEBCAM:
+    from WebCam import *
 from Controllers import *
 
-OPEN_CV = True
-if OPEN_CV:
+if DEBUG_WEBCAM:
     import cv2
     import cv2.cv as cv
 
@@ -39,24 +41,6 @@ if OPEN_CV:
 #
 # Constants
 #
-
-DEBUG = True
-
-DEBUG_WEBCAM = False
-DEUBG_WEBCAM_WITH_WINDOW = False
-
-# Set to false to debug with watch controllers
-DEBUG_KEYBOARD = True
-
-DEBUG_KEYBOARD_TWO_PLAYERS = False
-
-DEBUG_MOUSE = False
-
-DEBUG_SINGLE_PLAYER = DEBUG and not DEBUG_KEYBOARD_TWO_PLAYERS
-
-FULLSCREEN = False
-
-#####
 
 ROOT_DIR = path.abspath(path.dirname(__file__))
 SOUND_DIR = path.join(ROOT_DIR, 'sound')
@@ -497,7 +481,7 @@ class Game:
 def main():
     global webcam
     with Game() as game:
-        if OPEN_CV:
+        if DEBUG_WEBCAM:
             webcam = WebCam()
         game.start()
 

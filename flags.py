@@ -1,0 +1,17 @@
+
+
+DEBUG = True
+
+DEBUG_WEBCAM = False
+DEUBG_WEBCAM_WITH_WINDOW = False
+
+# Set to false to debug with watch controllers
+DEBUG_KEYBOARD = True
+
+DEBUG_KEYBOARD_TWO_PLAYERS = False
+
+DEBUG_MOUSE = False
+
+DEBUG_SINGLE_PLAYER = DEBUG and not DEBUG_KEYBOARD_TWO_PLAYERS
+
+FULLSCREEN = False

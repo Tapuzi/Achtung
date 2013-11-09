@@ -1,7 +1,9 @@
 '''This class includes controllers classes'''
 
+from flags import *
 import pygame
-import uberclock02 as uberclock
+if not DEBUG_KEYBOARD:
+    import uberclock02 as uberclock
 
 LEFT = -1
 STRAIGHT = 0
