@@ -89,9 +89,14 @@ SCORE_CAP_MULTIPLIER = 5
 BACKGROUND_MUSIC_VOLUME_LOW = 0.3
 BACKGROUND_MUSIC_VOLUME_NORMAL = 0.9
 
+DEFAULT_ROBOT_SPEED = 128
+
 # Debug speeds
-ROTATION_SPEED = 180 # Degrees per second
-MOVEMENT_SPEED = 120 # pixels per second
+if DEBUG:
+    ROTATION_SPEED = 180 # Degrees per second
+    DEFAULT_MOVEMENT_SPEED = 120 # pixels per second
+
+SPEED_INCREMENT_FRACTION = 0.50
 
 TRAIL_NON_COLLIDING_LAST_POINTS = 60
 
@@ -103,6 +108,20 @@ CLEAR_COLOR = (0, 0, 0, 0)
 
 class RobotNotFoundError(Exception):
     pass
+
+class Bonus:
+    """Abstart base class for bonuses"""
+    def __init__(self, position, image, game):
+        self.position = position
+        self.image = image
+        self.game = game
+
+    def activate(self, picker):
+        raise NotImplementedError()
+
+class SpeedUpSelf(Bonus):
+    def active(self, picker):
+        picker.increaseSpeed()
 
 class Trail:
     def __init__(self, game_surface, color):
@@ -142,6 +161,9 @@ class Player:
         self.alive = True
         self.direction = None
         self.position = None
+        self.robot_speed = 0
+        if DEBUG:
+            self.movement_speed = 0
         self.trail = Trail(self.game_surface, color)
         self.controller = controller
         self.clock = clock
@@ -156,7 +178,32 @@ class Player:
         self.alive = True
         self.trail.reset()
         self.creating_hole = False
+        self.stop()
         self.resetTimeToNextHole()
+
+    def go(self):
+        self.setSpeed(DEFAULT_ROBOT_SPEED, DEFAULT_MOVEMENT_SPEED)
+
+    def stop(self):
+        self.setSpeed(0, 0)
+
+    def setSpeed(self, speed, movement_speed=0):
+        self.robot_speed = speed
+        self.updateRobotSpeed()
+        if DEBUG:
+            self.movement_speed = movement_speed
+
+    def increaseSpeed(self):
+        self.robot_speed += DEFAULT_ROBOT_SPEED * SPEED_INCREMENT_FRACTION
+        self.updateRobotSpeed()
+        if DEBUG:
+            self.movement_speed += DEFAULT_MOVEMENT_SPEED * SPEED_INCREMENT_FRACTION
+
+    def decreaseSpeed(self):
+        self.robot_speed -= DEFAULT_ROBOT_SPEED * SPEED_INCREMENT_FRACTION
+        self.updateRobotSpeed()
+        if DEBUG:
+            self.movement_speed -= DEFAULT_MOVEMENT_SPEED * SPEED_INCREMENT_FRACTION
 
     def _set_position_and_direction_vector(self, position, direction_vector):
         self.position = position
@@ -189,7 +236,7 @@ class Player:
         assert DEBUG
         last_tick_duration = self.clock.get_time() / 1000.0
         rotation = ROTATION_SPEED * last_tick_duration
-        movement = MOVEMENT_SPEED * last_tick_duration
+        movement = self.movement_speed * last_tick_duration
 
         if self.direction == LEFT:
             self.direction_vector.rotate(-rotation)
@@ -253,19 +300,18 @@ class Player:
 
     def die(self):
         self.alive = False
-        self.sendStopToRobot()
+        self.stop()
         self.electrify()
 
     def sendDirectionToRobot(self):
         """Send direction to robot via xbee"""
         pass
 
-    def sendStartToRobot(self):
-        """Send Start command (start moving) to the robot via xbee"""
-        pass
+    def updateRobotSpeed(self):
+        self.sendSpeedToRobot(self.robot_speed)
 
-    def sendStopToRobot(self):
-        """Send Stop command (stop moving) to the robot via xbee"""
+    def sendSpeedToRobot(self, speed):
+        """Send speed to robot via xbee"""
         pass
 
     def electrify(self):
@@ -306,6 +352,7 @@ class Game:
 
         self.players = [Player(self.surface, color, controller, self.clock) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
+        self.bonuses = []
 
     def _randomize_players_positions_and_direction_vectors(self):
         for player in self.players:
@@ -452,6 +499,9 @@ class Game:
         self.begin_sound.play()
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_NORMAL)
 
+        for player in self.players:
+            player.go()
+
         while True:
             events = self.handle_events()
             for event in events:
@@ -474,15 +524,20 @@ class Game:
                 self.updateDisplay()
 
                 for player in self.players_alive[:]:
-                    if self.playerColidesWithWalls(player):
+                    for bonus in self.bonuses:
+                        if self.playerCollidesWithBonus(player, bonuses):
+                            bonus.activate()
+                            bonuses.remove(bonus)
+
+                    if self.playerCollidesWithWalls(player):
                         self.kill_player(player)
 
-                    if self.playerColidesWithItself(player):
+                    if self.playerCollidesWithItself(player):
                         self.kill_player(player)
 
                     # Check other players' trails
                     for trail in (p.trail for p in self.players if p != player):
-                        if self.playerColidesWithTrail(player, trail):
+                        if self.playerCollidesWithTrail(player, trail):
                             self.kill_player(player)
 
                 # Check end conditions
@@ -505,7 +560,10 @@ class Game:
         self.screen.blit(self.surface, (0, 0))
         pygame.display.flip()
 
-    def playerColidesWithWalls(self, player):
+    def playerCollidesWithBonus(self, player, bonus):
+        pass
+
+    def playerCollidesWithWalls(self, player):
         x, y = player.position
         left_wall_collision = x - COLLISTION_RADIUS <= 0
         top_wall_collision = y - COLLISTION_RADIUS <= 0
@@ -514,7 +572,7 @@ class Game:
         any_wall_collision = left_wall_collision or top_wall_collision or right_wall_collision or bottom_wall_collision
         return any_wall_collision
 
-    def playerColidesWithItself(self, player):
+    def playerCollidesWithItself(self, player):
         player_mask = pygame.mask.from_surface(player.surface)
         trail_mask = pygame.mask.from_surface(player.trail.self_collision_surface)
 
@@ -524,7 +582,7 @@ class Game:
         else:
             return True
 
-    def playerColidesWithTrail(self, player, trail):
+    def playerCollidesWithTrail(self, player, trail):
         player_mask = pygame.mask.from_surface(player.surface)
         trail_mask = pygame.mask.from_surface(trail.surface)
 
