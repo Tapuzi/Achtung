@@ -121,7 +121,7 @@ TRAIL_NON_COLLIDING_LAST_POINTS = 60
 
 CLEAR_COLOR = (0, 0, 0, 0)
 
-BONUS_SIZE = 25
+BONUS_SIZE = 35
 BONUS_DIMENSIONS = (BONUS_SIZE, BONUS_SIZE)
 
 TIME_TO_BONUS_MIN = 3 * 1000
@@ -648,10 +648,14 @@ class Game:
         pygame.display.flip()
 
     def playerCollidesWithBonus(self, player, bonus):
-        # TODO: change to circle-cirle collision / mask-based pixek perfect collision detection?
-        bonus_rect = bonus.get_rect()
-        colision_rect = bonus_rect.inflate(ROBOT_RADIUS * 2, ROBOT_RADIUS * 2)
-        return colision_rect.collidepoint(player.position)
+        bonus_mask = pygame.mask.from_surface(bonus.surface)
+        player_mask = pygame.mask.from_surface(player.surface)
+
+        overlap_point = player_mask.overlap(bonus_mask, bonus.position)
+        if overlap_point is None:
+            return False
+        else:
+            return True
 
     def playerCollidesWithWalls(self, player):
         x, y = player.position
