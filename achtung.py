@@ -10,6 +10,7 @@ import random
 import numpy
 import os
 from os import path
+import atexit
 
 if DEBUG_WEBCAM:
     from WebCam import *
@@ -36,6 +37,20 @@ if DEBUG_WEBCAM:
 ##       - Try to limit the mask overlap test are to that of the player's position (and radius)
 ##       - Maybe just use a lower target framerate
 ##
+
+#
+# Module init
+#
+
+pygame.init()
+
+@atexit.register
+def cleanup():
+    pygame.quit()
+
+def exit_():
+    cleanup()
+    exit()
 
 #
 # Constants
@@ -102,6 +117,9 @@ TRAIL_NON_COLLIDING_LAST_POINTS = 60
 
 CLEAR_COLOR = (0, 0, 0, 0)
 
+BONUS_SIZE = 25
+BONUS_DIMENSIONS = (BONUS_SIZE, BONUS_SIZE)
+
 #
 # Classes
 #
@@ -111,17 +129,58 @@ class RobotNotFoundError(Exception):
 
 class Bonus:
     """Abstart base class for bonuses"""
-    def __init__(self, position, image, game):
-        self.position = position
-        self.image = image
+    surface = None
+
+    def __init__(self, game, position):
         self.game = game
+        self.position = position
 
     def activate(self, picker):
         raise NotImplementedError()
 
+    def draw(self):
+        self.game.surface.blit(self.surface, self.position)
+
+    def get_rect(self):
+        return self.surface.get_rect(topleft=self.position)
+
+def load_bonus_image(image_file_name):
+    file_path = IMAGE_FILE_NAMES_TO_FILES[image_file_name]
+    surface = pygame.image.load(file_path)
+    scaled_surface = pygame.transform.smoothscale(surface, BONUS_DIMENSIONS)
+    return scaled_surface
+
 class SpeedUpSelf(Bonus):
-    def active(self, picker):
+    surface = load_bonus_image('SpeedUp.png')
+
+    def activate(self, picker):
         picker.increaseSpeed()
+
+class SpeedUpOthers(Bonus):
+    surface = None #TODO
+
+    def activate(self, picker):
+        others = [p for p in self.game.players_alive if p != picker]
+        for player in others:
+            player.increaseSpeed()
+
+class SpeedDownSelf(Bonus):
+    surface = load_bonus_image('SpeedDown.png')
+
+    def activate(self, picker):
+        picker.decreaseSpeed()
+
+class SpeedDownOthers(Bonus):
+    surface = None #TODO
+
+    def activate(self, picker):
+        others = [p for p in self.game.players_alive if p != picker]
+        for player in others:
+            player.decreaseSpeed()
+
+# TODO: make Game choose random bonuses from these
+#BONUSES = [SpeedUpSelf, SpeedUpOthers, SpeedDownSelf, SpeedDownOthers]
+BONUSES = [SpeedUpSelf, SpeedUpOthers]
 
 class Trail:
     def __init__(self, game_surface, color):
@@ -320,8 +379,6 @@ class Player:
 
 class Game:
     def __init__(self):
-        pygame.init()
-
         flags = 0
         if FULLSCREEN:
             flags |= pygame.FULLSCREEN
@@ -352,7 +409,8 @@ class Game:
 
         self.players = [Player(self.surface, color, controller, self.clock) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
-        self.bonuses = []
+        #self.bonuses = []
+        self.bonuses = [SpeedUpSelf(self, (50, 50))]
 
     def _randomize_players_positions_and_direction_vectors(self):
         for player in self.players:
@@ -364,12 +422,6 @@ class Game:
             direction_vector = Vec2d(1, 0)
             direction_vector.rotate(random.randrange(0, 360))
             player._set_position_and_direction_vector(Vec2d(x, y), direction_vector)
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, type, value, traceback):
-        pygame.quit()
 
     def kill_player(self, player):
         player.die()
@@ -383,10 +435,10 @@ class Game:
         for event in pygame.event.get():
             events.append(event)
             if event.type == pygame.QUIT:
-                exit()
+                exit_()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    exit()
+                    exit_()
         return events
 
     def start(self):
@@ -521,13 +573,15 @@ class Game:
                 for player in self.players:
                     player.trail.draw()
                     player.draw()
+                for bonus in self.bonuses:
+                    bonus.draw()
                 self.updateDisplay()
 
                 for player in self.players_alive[:]:
                     for bonus in self.bonuses:
-                        if self.playerCollidesWithBonus(player, bonuses):
-                            bonus.activate()
-                            bonuses.remove(bonus)
+                        if self.playerCollidesWithBonus(player, bonus):
+                            bonus.activate(player)
+                            self.bonuses.remove(bonus)
 
                     if self.playerCollidesWithWalls(player):
                         self.kill_player(player)
@@ -561,7 +615,9 @@ class Game:
         pygame.display.flip()
 
     def playerCollidesWithBonus(self, player, bonus):
-        pass
+        bonus_rect = bonus.get_rect()
+        colision_rect = bonus_rect.inflate(ROBOT_RADIUS * 2, ROBOT_RADIUS * 2)
+        return colision_rect.collidepoint(player.position)
 
     def playerCollidesWithWalls(self, player):
         x, y = player.position
@@ -600,10 +656,9 @@ class Game:
 
 def main():
     global webcam
-    with Game() as game:
-        if DEBUG_WEBCAM:
-            webcam = WebCam()
-        game.start()
+    if DEBUG_WEBCAM:
+        webcam = WebCam()
+    Game().start()
 
 if "__main__" == __name__:
     main()
