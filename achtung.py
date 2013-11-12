@@ -22,11 +22,15 @@ if DEBUG_WEBCAM:
 
 ##
 ## TODO:
-##     - Add bonuses (speed up/down, control reverse, players swap, electrify etc...)
+##     - Add more bonuses (speed up/down, control reverse, players swap, electrify etc...)
 ##     - Add a margin where game info is displayed
 ##     - Add black frame around board edges
 ##     - Show game info (Name, scores, round winner etc...)
 ##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
+##
+## Fixes:
+##    - Currently taking SpeedDown bonus twice in debug mode (not real robots...)
+##      causes the player to collide with itself. Fix this by making TRAIL_NON_COLLIDING_LAST_POINTS dynamic?
 ##
 ## Improvements:
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
@@ -120,6 +124,12 @@ CLEAR_COLOR = (0, 0, 0, 0)
 BONUS_SIZE = 25
 BONUS_DIMENSIONS = (BONUS_SIZE, BONUS_SIZE)
 
+TIME_TO_BONUS_MIN = 3 * 1000
+TIME_TO_BONUS_MAX = 10 * 1000
+if DEBUG_BONUSES:
+    TIME_TO_BONUS_MIN = 1 * 1000
+    TIME_TO_BONUS_MAX = 2 * 1000
+
 #
 # Classes
 #
@@ -180,7 +190,7 @@ class SpeedDownOthers(Bonus):
 
 # TODO: make Game choose random bonuses from these
 #BONUSES = [SpeedUpSelf, SpeedUpOthers, SpeedDownSelf, SpeedDownOthers]
-BONUSES = [SpeedUpSelf, SpeedUpOthers]
+BONUSES = [SpeedUpSelf, SpeedDownSelf]
 
 class Trail:
     def __init__(self, game_surface, color):
@@ -409,8 +419,6 @@ class Game:
 
         self.players = [Player(self.surface, color, controller, self.clock) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
-        #self.bonuses = []
-        self.bonuses = [SpeedUpSelf(self, (50, 50))]
 
     def _randomize_players_positions_and_direction_vectors(self):
         for player in self.players:
@@ -551,6 +559,9 @@ class Game:
         self.begin_sound.play()
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_NORMAL)
 
+        bonuses = []
+        next_bonus_time = self.get_randomized_next_bonus_time()
+
         for player in self.players:
             player.go()
 
@@ -569,19 +580,26 @@ class Game:
                     except RobotNotFoundError:
                         self.kill_player(player)
 
+                last_tick_duration = self.clock.get_time()
+                next_bonus_time -= last_tick_duration
+                if next_bonus_time <= 0:
+                    bonus = self.get_randomized_bonus()
+                    bonuses.append(bonus)
+                    next_bonus_time = self.get_randomized_next_bonus_time()
+
                 self.clearSurface()
                 for player in self.players:
                     player.trail.draw()
                     player.draw()
-                for bonus in self.bonuses:
+                for bonus in bonuses:
                     bonus.draw()
                 self.updateDisplay()
 
                 for player in self.players_alive[:]:
-                    for bonus in self.bonuses:
+                    for bonus in bonuses:
                         if self.playerCollidesWithBonus(player, bonus):
                             bonus.activate(player)
-                            self.bonuses.remove(bonus)
+                            bonuses.remove(bonus)
 
                     if self.playerCollidesWithWalls(player):
                         self.kill_player(player)
@@ -607,6 +625,21 @@ class Game:
 
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
 
+    def get_randomized_next_bonus_time(self):
+        next_bonus_time = random.uniform(TIME_TO_BONUS_MIN, TIME_TO_BONUS_MAX)
+        if DEBUG_BONUSES:
+            print 'next bonus in %.2f' % (next_bonus_time / 1000.0)
+        return next_bonus_time
+
+    def get_randomized_bonus(self):
+        bonus_class = random.choice(BONUSES)
+        bonus_w = bonus_class.surface.get_width()
+        bonus_h = bonus_class.surface.get_height()
+        x = random.randrange(0, GAME_WIDTH - bonus_w)
+        y = random.randrange(0, GAME_WIDTH - bonus_h)
+        bonus = bonus_class(self, (x, y))
+        return bonus
+
     def clearSurface(self):
         self.surface.fill((255, 255, 255))
 
@@ -615,6 +648,7 @@ class Game:
         pygame.display.flip()
 
     def playerCollidesWithBonus(self, player, bonus):
+        # TODO: change to circle-cirle collision / mask-based pixek perfect collision detection?
         bonus_rect = bonus.get_rect()
         colision_rect = bonus_rect.inflate(ROBOT_RADIUS * 2, ROBOT_RADIUS * 2)
         return colision_rect.collidepoint(player.position)

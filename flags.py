@@ -18,6 +18,7 @@ DEBUG_KEYBOARD = False
 DEBUG_KEYBOARD_TWO_PLAYERS = False
 DEBUG_MOUSE = False
 DEBUG_TRAIL = False
+DEBUG_BONUSES = False
 FULLSCREEN = True
 
 
@@ -34,6 +35,7 @@ try:
         DEBUG_KEYBOARD_TWO_PLAYERS = False
         DEBUG_MOUSE = False
         DEBUG_TRAIL = False
+        DEBUG_BONUSES = True
         FULLSCREEN = False
     elif DEBUGGER == 'X-reX':
         pass
