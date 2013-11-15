@@ -109,13 +109,17 @@ BACKGROUND_MUSIC_VOLUME_LOW = 0.3
 BACKGROUND_MUSIC_VOLUME_NORMAL = 0.9
 
 DEFAULT_ROBOT_SPEED = 128
+MAX_ROBOT_SPEED = 255
+MIN_ROBOT_SPEED = 32
 
 # Debug speeds
 if DEBUG:
     ROTATION_SPEED = 180 # Degrees per second
     DEFAULT_MOVEMENT_SPEED = 120 # pixels per second
+    MAX_MOVEMENT_SPEED = 400
+    MIN_MOVEMENT_SPEED = 30
 
-SPEED_INCREMENT_FRACTION = 0.50
+SPEED_MODIFICATION_RATIO = 0.50
 
 TRAIL_NON_COLLIDING_LAST_POINTS = 60
 
@@ -137,16 +141,22 @@ if DEBUG_BONUSES:
 class RobotNotFoundError(Exception):
     pass
 
-class Bonus:
+class Bonus(object):
     """Abstart base class for bonuses"""
     surface = None
+    DURATION_MIN = None
+    DURATION_MAX = None
 
     def __init__(self, game, position):
         self.game = game
         self.position = position
+        self.duration = random.uniform(self.DURATION_MIN, self.DURATION_MAX)
 
     def activate(self, picker):
-        raise NotImplementedError()
+        self.picker = picker
+
+    def deactivate(self):
+        pass
 
     def draw(self):
         self.game.surface.blit(self.surface, self.position)
@@ -160,33 +170,56 @@ def load_bonus_image(image_file_name):
     scaled_surface = pygame.transform.smoothscale(surface, BONUS_DIMENSIONS)
     return scaled_surface
 
-class SpeedUpSelf(Bonus):
+class ModifySelfSpeed(Bonus):
+    ROBOT_SPEED_DELTA = None
+    MOVEMENT_SPEED_DELTA = None
+
+    def activate(self, picker):
+        super(ModifySelfSpeed, self).activate(picker)
+
+        self.robot_speed_delta = self.ROBOT_SPEED_DELTA
+        self.movement_speed_delta = self.MOVEMENT_SPEED_DELTA
+
+        self.robot_speed_delta, self.movement_speed_delta = picker.modifySpeedBounded(self.robot_speed_delta, self.movement_speed_delta)
+
+    def deactivate(self):
+        self.picker.modifySpeedBounded(-self.robot_speed_delta, -self.movement_speed_delta)
+
+class SpeedUpSelf(ModifySelfSpeed):
     surface = load_bonus_image('SpeedUp.png')
+    DURATION_MIN = 1 * 1000
+    DURATION_MAX = 3 * 1000
+    ROBOT_SPEED_DELTA = DEFAULT_ROBOT_SPEED * SPEED_MODIFICATION_RATIO
+    MOVEMENT_SPEED_DELTA = DEFAULT_MOVEMENT_SPEED * SPEED_MODIFICATION_RATIO
 
-    def activate(self, picker):
-        picker.increaseSpeed()
-
-class SpeedUpOthers(Bonus):
-    surface = None #TODO
-
-    def activate(self, picker):
-        others = [p for p in self.game.players_alive if p != picker]
-        for player in others:
-            player.increaseSpeed()
-
-class SpeedDownSelf(Bonus):
+class SpeedDownSelf(ModifySelfSpeed):
     surface = load_bonus_image('SpeedDown.png')
+    DURATION_MIN = 1 * 1000
+    DURATION_MAX = 3 * 1000
+    ROBOT_SPEED_DELTA = -(DEFAULT_ROBOT_SPEED * SPEED_MODIFICATION_RATIO)
+    MOVEMENT_SPEED_DELTA = -(DEFAULT_MOVEMENT_SPEED * SPEED_MODIFICATION_RATIO)
 
-    def activate(self, picker):
-        picker.decreaseSpeed()
+##class SpeedUpOthers(Bonus):
+##    surface = None #TODO
+##    DURATION_MIN = 1 * 1000
+##    DURATION_MAX = 3 * 1000
+##
+##    def activate(self, picker):
+##        super(SpeedUpOthers, self).activate(picker)
+##        others = [p for p in self.game.players_alive if p != picker]
+##        for player in others:
+##            player.increaseSpeed()
 
-class SpeedDownOthers(Bonus):
-    surface = None #TODO
-
-    def activate(self, picker):
-        others = [p for p in self.game.players_alive if p != picker]
-        for player in others:
-            player.decreaseSpeed()
+##class SpeedDownOthers(Bonus):
+##    surface = None #TODO
+##    DURATION_MIN = 1 * 1000
+##    DURATION_MAX = 3 * 1000
+##
+##    def activate(self, picker):
+##        super(SpeedDownOthers, self).activate(picker)
+##        others = [p for p in self.game.players_alive if p != picker]
+##        for player in others:
+##            player.decreaseSpeed()
 
 # TODO: make Game choose random bonuses from these
 #BONUSES = [SpeedUpSelf, SpeedUpOthers, SpeedDownSelf, SpeedDownOthers]
@@ -231,8 +264,7 @@ class Player:
         self.direction = None
         self.position = None
         self.robot_speed = 0
-        if DEBUG:
-            self.movement_speed = 0
+        self.movement_speed = 0
         self.trail = Trail(self.game_surface, color)
         self.controller = controller
         self.clock = clock
@@ -256,23 +288,29 @@ class Player:
     def stop(self):
         self.setSpeed(0, 0)
 
-    def setSpeed(self, speed, movement_speed=0):
-        self.robot_speed = speed
+    def setSpeed(self, robot_speed, movement_speed=0):
+        self.robot_speed = robot_speed
         self.updateRobotSpeed()
         if DEBUG:
             self.movement_speed = movement_speed
 
-    def increaseSpeed(self):
-        self.robot_speed += DEFAULT_ROBOT_SPEED * SPEED_INCREMENT_FRACTION
-        self.updateRobotSpeed()
-        if DEBUG:
-            self.movement_speed += DEFAULT_MOVEMENT_SPEED * SPEED_INCREMENT_FRACTION
+    def modifySpeed(self, robot_speed_delta, movement_speed_delta=0):
+        self.setSpeed(self.robot_speed + robot_speed_delta, self.movement_speed + movement_speed_delta)
 
-    def decreaseSpeed(self):
-        self.robot_speed -= DEFAULT_ROBOT_SPEED * SPEED_INCREMENT_FRACTION
-        self.updateRobotSpeed()
+    def modifySpeedBounded(self, robot_speed_delta, movement_speed_delta=0):
+        if self.robot_speed + robot_speed_delta > MAX_ROBOT_SPEED:
+            robot_speed_delta = MAX_ROBOT_SPEED - self.robot_speed
+        if self.robot_speed + robot_speed_delta < MIN_ROBOT_SPEED:
+            robot_speed_delta = -(self.robot_speed - MIN_ROBOT_SPEED)
+
         if DEBUG:
-            self.movement_speed -= DEFAULT_MOVEMENT_SPEED * SPEED_INCREMENT_FRACTION
+            if self.movement_speed + movement_speed_delta > MAX_MOVEMENT_SPEED:
+                movement_speed_delta = MAX_MOVEMENT_SPEED - self.movement_speed
+            if self.movement_speed + movement_speed_delta < MIN_MOVEMENT_SPEED:
+                movement_speed_delta = -(self.movement_speed - MIN_MOVEMENT_SPEED)
+
+        self.modifySpeed(robot_speed_delta, movement_speed_delta)
+        return robot_speed_delta, movement_speed_delta
 
     def _set_position_and_direction_vector(self, position, direction_vector):
         self.position = position
@@ -560,6 +598,7 @@ class Game:
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_NORMAL)
 
         bonuses = []
+        activated_bonuses = []
         next_bonus_time = self.get_randomized_next_bonus_time()
 
         for player in self.players:
@@ -596,10 +635,18 @@ class Game:
                 self.updateDisplay()
 
                 for player in self.players_alive[:]:
+                    for bonus in activated_bonuses:
+                        last_tick_duration = self.clock.get_time()
+                        bonus.duration -= last_tick_duration
+                        if bonus.duration <= 0:
+                            bonus.deactivate()
+                            activated_bonuses.remove(bonus)
+
                     for bonus in bonuses:
                         if self.playerCollidesWithBonus(player, bonus):
                             bonus.activate(player)
                             bonuses.remove(bonus)
+                            activated_bonuses.append(bonus)
 
                     if self.playerCollidesWithWalls(player):
                         self.kill_player(player)
@@ -627,8 +674,6 @@ class Game:
 
     def get_randomized_next_bonus_time(self):
         next_bonus_time = random.uniform(TIME_TO_BONUS_MIN, TIME_TO_BONUS_MAX)
-        if DEBUG_BONUSES:
-            print 'next bonus in %.2f' % (next_bonus_time / 1000.0)
         return next_bonus_time
 
     def get_randomized_bonus(self):
