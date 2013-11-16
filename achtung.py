@@ -2,7 +2,9 @@
 Achtung!
 """
 from flags import *
+from ArduinoSerial import ArduinoController
 
+import serial
 import pygame
 from collections import namedtuple
 from vec2d import Vec2d
@@ -253,6 +255,42 @@ class Trail:
         if DEBUG_TRAIL:
             self.game_surface.blit(self.self_collision_surface, (0, 0))
 
+class RobotController(object):
+    def __init__(self, arduino_controller):
+        self.controller = arduino_controller
+        self.speed = 0
+        self.direction = STRAIGHT
+        self.moving = False
+        self.prev_speed = self.speed
+        self.prev_direction = self.direction
+        
+    def go(self):
+        self.controller.move()
+        
+    def stop(self):
+        self.controller.stop()
+        
+    def updateRobotMovement(self):
+        movement_changed = self.speed != self.prev_speed or self.direction != self.prev_direction
+        if not movement_changed:
+            return
+            
+        if self.direction == STRAIGHT:
+            self.controller.setSpeedLeft(self.speed)
+            self.controller.setSpeedRight(self.speed)
+        elif self.direction == RIGHT:
+            self.controller.setSpeedLeft(self.speed / 1.5)
+            self.controller.setSpeedRight(self.speed * 1.5)
+        elif self.direction == LEFT:
+            self.controller.setSpeedLeft(self.speed * 1.5)
+            self.controller.setSpeedRight(self.speed / 1.5)
+        else:
+            assert False
+            
+        self.prev_speed = self.speed
+        self.prev_direction = self.direction
+            
+            
 class Player:
     def __init__(self, game_surface, color, controller, clock):
         self.game_surface = game_surface
@@ -274,6 +312,10 @@ class Player:
         self.creating_hole = False
         self.resetTimeToNextHole()
         self.score = 0
+        if DEBUG_ROBOT:
+            ser = serial.Serial('COM4', baudrate=38400)
+            arduino = ArduinoController(ser, '1111')
+            self.robot_controller = RobotController(arduino)
 
     def reset(self):
         self.alive = True
@@ -286,11 +328,12 @@ class Player:
         self.setSpeed(DEFAULT_ROBOT_SPEED, DEFAULT_MOVEMENT_SPEED)
 
     def stop(self):
-        self.setSpeed(0, 0)
+        self.setSpeed(0)
+        self.robot_controller.stop()
 
     def setSpeed(self, robot_speed, movement_speed=0):
         self.robot_speed = robot_speed
-        self.updateRobotSpeed()
+        self.robot_controller.speed = robot_speed
         if DEBUG:
             self.movement_speed = movement_speed
 
@@ -403,28 +446,17 @@ class Player:
 
     def updateDirection(self):
         self.direction = self.controller.getDirection()
-        self.sendDirectionToRobot()
+        self.robot_controller.direction = self.direction
 
     def die(self):
         self.alive = False
         self.stop()
         self.electrify()
 
-    def sendDirectionToRobot(self):
-        """Send direction to robot via xbee"""
-        pass
-
-    def updateRobotSpeed(self):
-        self.sendSpeedToRobot(self.robot_speed)
-
-    def sendSpeedToRobot(self, speed):
-        """Send speed to robot via xbee"""
-        pass
-
     def electrify(self):
         """Shock player with electric pulse"""
         pass
-
+        
 class Game:
     def __init__(self):
         flags = 0
@@ -628,6 +660,9 @@ class Game:
                     bonuses.append(bonus)
                     next_bonus_time = self.get_randomized_next_bonus_time()
 
+                for player in self.players_alive:
+                    player.robot_controller.updateRobotMovement()
+                    
                 self.clearSurface()
                 for player in self.players:
                     player.trail.draw()
