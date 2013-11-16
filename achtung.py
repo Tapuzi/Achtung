@@ -452,6 +452,8 @@ class Game:
                 self.controllers.append(KeyboardController(pygame.K_z, pygame.K_c))
         elif DEBUG_MOUSE:
             self.controllers = [MouseController()]
+        elif DEBUG_XBOX:
+            self.controllers = [XboxController()]
         else:
             self.controllers = [WatchController(port, id) for port, id in zip(COMPORTS, IDS)]
 
@@ -489,7 +491,7 @@ class Game:
 
     def start(self):
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
-        pygame.mixer.music.play(loops=-1)
+        pygame.mixer.music.play(-1)
 
         while True:
             self.play_game()

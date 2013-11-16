@@ -2,8 +2,9 @@
 
 from flags import *
 import pygame
-if not DEBUG_KEYBOARD:
+if not DEBUG_KEYBOARD and not DEBUG_XBOX and not DEBUG_MOUSE:
     import uberclock02 as uberclock
+import math
 
 LEFT = -1
 STRAIGHT = 0
@@ -75,6 +76,22 @@ class KeyboardController(Controller):
 
         return direction
 
+class XboxController(Controller):
+    def __init__(self):
+        self.controller = pygame.joystick.Joystick(0)
+        self.controller.init()
+        self.x_direction = 0
+    def getDirection(self):
+        self.x_direction = self.controller.get_axis(4)
+        if math.fabs(self.x_direction) < 0.95:
+            self.x_direction = 0
+        direction = STRAIGHT
+        if self.x_direction < 0:
+            direction = LEFT
+        elif self.x_direction > 0:
+            direction = RIGHT
+        return direction
+        
 class WatchController(Controller):
     def __init__(self, comPort, deviceId):
         self.deviceId = deviceId

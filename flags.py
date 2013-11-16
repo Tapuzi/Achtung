@@ -31,9 +31,10 @@ try:
         DEBUG = True
         DEBUG_WEBCAM = False
         DEUBG_WEBCAM_WITH_WINDOW = False
-        DEBUG_KEYBOARD = True
+        DEBUG_KEYBOARD = False
         DEBUG_KEYBOARD_TWO_PLAYERS = False
         DEBUG_MOUSE = False
+        DEBUG_XBOX = True
         DEBUG_TRAIL = False
         DEBUG_BONUSES = True
         FULLSCREEN = False
