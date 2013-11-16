@@ -7,9 +7,12 @@
       * TX is digital pin 2 (connect to RX of XBee)
   */
 #include <SoftwareSerial.h>
+#include <HUBeeBMDWheel.h>
 
 // Declaring a software serial for the xbee module
 SoftwareSerial xbee(2, 3); // Rx, Tx
+HUBeeBMDWheel rightWheel(8, 11, 9);
+HUBeeBMDWheel leftWheel(12, 13, 10);
 
 const int local_led_pin = 13;
 String incomingCommand;
@@ -34,7 +37,17 @@ void setup() {
       pinMode(local_led_pin, OUTPUT); 
       
       // Set the data rate for the SoftwareSerial port
-      xbee.begin(9600);
+      xbee.begin(38400);
+      
+      leftWheel.setBrakeMode(1);
+      leftWheel.setDirectionMode(0);
+      leftWheel.setStandbyMode(0);
+      leftWheel.setMotorPower(0);
+      
+      rightWheel.setBrakeMode(1);
+      rightWheel.setDirectionMode(1);
+      rightWheel.setStandbyMode(0);
+      rightWheel.setMotorPower(0);
 }
 
 void loop() {
@@ -50,10 +63,24 @@ void loop() {
               Serial.print("key=" + current_command.key);
               Serial.print(" ");
               Serial.print("value=" + current_command.value);
-              Serial.println("");
-              digitalWrite(local_led_pin, HIGH);
-              delay(2000);
-              digitalWrite(local_led_pin, LOW);
+              Serial.print("\n");
+          
+              if (current_command.key == "start") {
+                 Serial.println("Start the hub-ee wheels");
+                 leftWheel.setMotorPower(current_command.value.toInt());
+                 rightWheel.setMotorPower(current_command.value.toInt());
+              }
+              else if (current_command.key == "stop") {
+                 Serial.println("Stop the hub-ee wheels");
+                 leftWheel.setMotorPower(0);
+                 rightWheel.setMotorPower(0);
+              }
+              else if (current_command.key == "setLeft") {
+                 leftWheel.setMotorPower(current_command.value.toInt());
+              }
+              else if (current_command.key == "setRight") {
+                 rightWheel.setMotorPower(current_command.value.toInt());
+              }        
             } else {
               Serial.println("This command is not for me!");
             }
