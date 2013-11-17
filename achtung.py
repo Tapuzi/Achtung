@@ -93,8 +93,8 @@ COLORS = [
 IDS = ['1337' for color in COLORS]
 COMPORTS = ['COM10']
 
-ROBOT_RADIUS = 7
-COLLISTION_RADIUS = ROBOT_RADIUS - 2
+TRAIL_WIDTH = 3 * 2
+PLAYER_RADIUS = 7
 
 GAME_WIDTH = 500
 GAME_HIGHT = 500
@@ -249,13 +249,13 @@ class Trail:
 
     def addPoint(self, point):
         int_point = (int(round(point.x)), int(round(point.y)))
-        pygame.draw.circle(self.surface, self.color.value, int_point, ROBOT_RADIUS)
+        pygame.draw.circle(self.surface, self.color.value, int_point, TRAIL_WIDTH / 2)
 
         self.last_points.append(int_point)
         if len(self.last_points) > TRAIL_NON_COLLIDING_LAST_POINTS:
             first_last_point = self.last_points.pop(0)
             self_collision_trail_color = (128, 0, 128) if DEBUG_TRAIL else self.color.value
-            pygame.draw.circle(self.self_collision_surface, self_collision_trail_color, first_last_point, ROBOT_RADIUS)
+            pygame.draw.circle(self.self_collision_surface, self_collision_trail_color, first_last_point, TRAIL_WIDTH / 2)
 
     def draw(self):
         self.game_surface.blit(self.surface, (0, 0))
@@ -449,7 +449,7 @@ class Player:
             color = (90, 180, 90)
         else:
             color = self.color.value
-        pygame.draw.circle(self.surface, color, int_position, ROBOT_RADIUS)
+        pygame.draw.circle(self.surface, color, int_position, PLAYER_RADIUS)
         if add_to_trail and not self.creatingHole():
             self.trail.addPoint(Vec2d(self.position))
 
@@ -752,10 +752,10 @@ class Game:
 
     def playerCollidesWithWalls(self, player):
         x, y = player.position
-        left_wall_collision = x - COLLISTION_RADIUS <= 0
-        top_wall_collision = y - COLLISTION_RADIUS <= 0
-        right_wall_collision = x + COLLISTION_RADIUS >= GAME_WIDTH
-        bottom_wall_collision = y + COLLISTION_RADIUS >= GAME_HIGHT
+        left_wall_collision = x - PLAYER_RADIUS < 0
+        top_wall_collision = y - PLAYER_RADIUS < 0
+        right_wall_collision = x + PLAYER_RADIUS > GAME_WIDTH
+        bottom_wall_collision = y + PLAYER_RADIUS > GAME_HIGHT
         any_wall_collision = left_wall_collision or top_wall_collision or right_wall_collision or bottom_wall_collision
         return any_wall_collision
 
