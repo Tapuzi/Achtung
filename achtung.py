@@ -110,9 +110,16 @@ SCORE_CAP_MULTIPLIER = 5
 BACKGROUND_MUSIC_VOLUME_LOW = 0.3
 BACKGROUND_MUSIC_VOLUME_NORMAL = 0.9
 
+
+MAX_WHEEL_SPEED = 255
+MIN_WHEEL_SPEED = 0
+
+TURN_WHEEL_SPEED_DIFFERENCE = 32
+
+MAX_ROBOT_SPEED = MAX_WHEEL_SPEED - TURN_WHEEL_SPEED_DIFFERENCE
+MIN_ROBOT_SPEED = MIN_WHEEL_SPEED + TURN_WHEEL_SPEED_DIFFERENCE
+
 DEFAULT_ROBOT_SPEED = 128
-MAX_ROBOT_SPEED = 255
-MIN_ROBOT_SPEED = 32
 
 # Debug speeds
 if DEBUG:
@@ -279,11 +286,11 @@ class RobotController(object):
             self.controller.setSpeedLeft(self.speed)
             self.controller.setSpeedRight(self.speed)
         elif self.direction == RIGHT:
-            self.controller.setSpeedLeft(self.speed / 1.5)
-            self.controller.setSpeedRight(self.speed * 1.5)
+            self.controller.setSpeedLeft(self.speed + TURN_WHEEL_SPEED_DIFFERENCE)
+            self.controller.setSpeedRight(self.speed - TURN_WHEEL_SPEED_DIFFERENCE)
         elif self.direction == LEFT:
-            self.controller.setSpeedLeft(self.speed * 1.5)
-            self.controller.setSpeedRight(self.speed / 1.5)
+            self.controller.setSpeedLeft(self.speed - TURN_WHEEL_SPEED_DIFFERENCE)
+            self.controller.setSpeedRight(self.speed + TURN_WHEEL_SPEED_DIFFERENCE)
         else:
             assert False
 
