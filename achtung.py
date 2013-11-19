@@ -40,8 +40,6 @@ if DEBUG_WEBCAM:
 ##     - Profile the game and improve performance (it seems that with multiple players / bigger window,
 ##       The drawing / collision detection slows the game down.
 ##       - Try to do things in parallel? (collision detection for example)
-##       - Try to limit the mask overlap test are to that of the player's position (and radius)
-##       - Maybe just use a lower target framerate
 ##
 
 #
@@ -302,13 +300,14 @@ class RobotController(object):
 class Player:
     def __init__(self, game_surface, color, controller, clock):
         self.game_surface = game_surface
-        self.surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
+        self.surface = pygame.Surface((PLAYER_RADIUS * 2, PLAYER_RADIUS * 2), flags=pygame.SRCALPHA)
         self.color = color
         self.lowerColor = color.value_range[0]
         self.upperColor = color.value_range[1]
         self.alive = True
         self.direction = None
         self.position = None
+        self.surface_position = None
         self.robot_speed = 0
         self.movement_speed = 0
         self.trail = Trail(self.game_surface, color)
@@ -406,7 +405,7 @@ class Player:
         self.position += (self.direction_vector * movement)
 
     def draw(self):
-        self.game_surface.blit(self.surface, (0, 0))
+        self.game_surface.blit(self.surface, self.surface_position)
 
     def getRobotPositionFromCamera(self):
         """Get Position from camera via opencv. Throw RobotNotFoundError if robot not found."""
@@ -448,13 +447,13 @@ class Player:
 
 
         self.position = self.getRobotPositionFromCamera()
+        self.surface_position = (int(self.position.x - PLAYER_RADIUS), int(self.position.y - PLAYER_RADIUS))
         self.surface.fill(CLEAR_COLOR)
-        int_position = (int(self.position.x), int(self.position.y))
         if DEBUG:
             color = (90, 180, 90)
         else:
             color = self.color.value
-        pygame.draw.circle(self.surface, self.color.value, int_position, PLAYER_RADIUS)
+        pygame.draw.circle(self.surface, self.color.value, (PLAYER_RADIUS, PLAYER_RADIUS), PLAYER_RADIUS)
         if add_to_trail and not self.creatingHole():
             self.trail.addPoint(Vec2d(self.position))
 
@@ -741,7 +740,9 @@ class Game:
         bonus_mask = pygame.mask.from_surface(bonus.surface)
         player_mask = pygame.mask.from_surface(player.surface)
 
-        overlap_point = player_mask.overlap(bonus_mask, bonus.position)
+        bonus_offset = Vec2d(bonus.position) - Vec2d(player.surface_position)
+
+        overlap_point = player_mask.overlap(bonus_mask, bonus_offset)
         if overlap_point is None:
             return False
         else:
@@ -760,7 +761,7 @@ class Game:
         player_mask = pygame.mask.from_surface(player.surface)
         trail_mask = pygame.mask.from_surface(player.trail.self_collision_surface)
 
-        overlap_point = trail_mask.overlap(player_mask, (0, 0))
+        overlap_point = trail_mask.overlap(player_mask, player.surface_position)
         if overlap_point is None:
             return False
         else:
@@ -770,7 +771,7 @@ class Game:
         player_mask = pygame.mask.from_surface(player.surface)
         trail_mask = pygame.mask.from_surface(trail.surface)
 
-        overlap_point = trail_mask.overlap(player_mask, (0, 0))
+        overlap_point = trail_mask.overlap(player_mask, player.surface_position)
         if overlap_point is None:
             return False
         else:
