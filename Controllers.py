@@ -2,8 +2,7 @@
 
 from flags import *
 import pygame
-if not DEBUG_KEYBOARD and not DEBUG_XBOX and not DEBUG_MOUSE:
-    import uberclock02 as uberclock
+import uberclock02 as uberclock
 import math
 
 LEFT = -1
@@ -77,10 +76,11 @@ class KeyboardController(Controller):
         return direction
 
 class XboxController(Controller):
-    def __init__(self):
-        self.controller = pygame.joystick.Joystick(0)
+    def __init__(self, index):
+        self.controller = pygame.joystick.Joystick(index)
         self.controller.init()
         self.x_direction = 0
+
     def getDirection(self):
         self.x_direction = self.controller.get_axis(4)
         if math.fabs(self.x_direction) < 0.95:
@@ -91,7 +91,7 @@ class XboxController(Controller):
         elif self.x_direction > 0:
             direction = RIGHT
         return direction
-        
+
 class WatchController(Controller):
     def __init__(self, comPort, deviceId):
         self.deviceId = deviceId
@@ -136,3 +136,25 @@ class WatchController(Controller):
 
     def getDirection(self):
         return self.getOrientation()
+
+def getControllers(amount):
+    watch_controllers = getWatchControllers()
+    xbox_controller = getXboxControllers()
+    mouse_controller = [MouseController()] if USE_MOUSE else []
+    keyboard_controllers = [
+        KeyboardController(pygame.K_LEFT, pygame.K_RIGHT),
+        KeyboardController(pygame.K_z, pygame.K_c),
+        KeyboardController(pygame.K_KP4, pygame.K_KP6),
+        KeyboardController(pygame.K_b, pygame.K_m),
+    ]
+
+    controllers = watch_controllers + xbox_controller + mouse_controller + keyboard_controllers
+    return controllers[:amount]
+
+def getXboxControllers():
+    return [XboxController(i) for i in xrange(pygame.joystick.get_count())]
+
+def getWatchControllers():
+    #TODO: Detect connected watches, and return WatchController list
+    #      (try using serial.tools.list_ports.comports())
+    return []

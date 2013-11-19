@@ -52,6 +52,7 @@ pygame.init()
 
 @atexit.register
 def cleanup():
+    #TODO: stop all robots
     pygame.quit()
 
 def exit_():
@@ -442,6 +443,10 @@ class Player:
                     raise RobotNotFoundError()
 
     def updatePosition(self, add_to_trail=False):
+        #TODO: -measure distance from last point and add to hole length var
+        #      -stop creating hole when reaching target value..
+
+
         self.position = self.getRobotPositionFromCamera()
         self.surface.fill(CLEAR_COLOR)
         int_position = (int(self.position.x), int(self.position.y))
@@ -449,7 +454,7 @@ class Player:
             color = (90, 180, 90)
         else:
             color = self.color.value
-        pygame.draw.circle(self.surface, color, int_position, PLAYER_RADIUS)
+        pygame.draw.circle(self.surface, self.color.value, int_position, PLAYER_RADIUS)
         if add_to_trail and not self.creatingHole():
             self.trail.addPoint(Vec2d(self.position))
 
@@ -488,16 +493,7 @@ class Game:
         self.start_beeps_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['start_beeps.wav'])
         self.explosion_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['80938__tony-b-kksm__soft-explosion.wav'])
 
-        if DEBUG_KEYBOARD:
-            self.controllers = [KeyboardController(pygame.K_LEFT, pygame.K_RIGHT)]
-            if DEBUG_KEYBOARD_TWO_PLAYERS:
-                self.controllers.append(KeyboardController(pygame.K_z, pygame.K_c))
-        elif DEBUG_MOUSE:
-            self.controllers = [MouseController()]
-        elif DEBUG_XBOX:
-            self.controllers = [XboxController()]
-        else:
-            self.controllers = [WatchController(port, id) for port, id in zip(COMPORTS, IDS)]
+        self.controllers = getControllers(PLAYERS_COUNT)
 
         self.players = [Player(self.surface, color, controller, self.clock) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
@@ -654,6 +650,7 @@ class Game:
                 if event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_SPACE:
                         paused = not paused
+                        #TODO: start/stop robots
 
             if not paused:
                 for player in self.players_alive[:]:
