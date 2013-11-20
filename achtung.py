@@ -800,23 +800,29 @@ class MenuWrapper():
         
         pygame.display.update()
         while True:
+            finished = False
             for event in pygame.event.get():
                 if event.type == pygame.locals.KEYDOWN:
                     if event.key == pygame.locals.K_UP:
                         current_menu.draw(-1)
-                    if event.key == pygame.locals.K_DOWN:
+                    elif event.key == pygame.locals.K_DOWN:
                         current_menu.draw(1)
-                    if event.key == pygame.locals.K_RETURN:
+                    elif event.key == pygame.locals.K_RETURN:
                         selection = current_menu.get_position()
                         if None != self.functions[selection]:
                             self.functions[selection]()
+                            finished = True
                             break
-                    if event.key == pygame.locals.K_ESCAPE:
+                    elif event.key == pygame.locals.K_ESCAPE:
                         sys.exit()
                     pygame.display.update()
                 elif event.type == pygame.locals.QUIT:
                     sys.exit()
+            if finished:
+                break
             pygame.time.wait(8)
+            
+        print "Finished running"
         
 def main():
     global webcam
@@ -829,7 +835,6 @@ def main():
         game_menu = MenuWrapper(game_screen.getScreen())
         for option, function in menu_options:
             game_menu.addOption(option, function)
-        
         game_menu.showMenu()
 
 if "__main__" == __name__:
