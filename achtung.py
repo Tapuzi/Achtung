@@ -13,6 +13,8 @@ import numpy
 import os
 from os import path
 import atexit
+import menu
+import sys
 
 if DEBUG_WEBCAM:
     from WebCam import *
@@ -142,6 +144,9 @@ if DEBUG_BONUSES:
     TIME_TO_BONUS_MIN = 1 * 1000
     TIME_TO_BONUS_MAX = 2 * 1000
 
+# Menu constants
+NO_OPTION = -1
+    
 #
 # Classes
 #
@@ -471,22 +476,29 @@ class Player:
         """Shock player with electric pulse"""
         pass
 
-class Game:
+class Screen:
     def __init__(self):
         flags = 0
         if FULLSCREEN:
             flags |= pygame.FULLSCREEN
         self.screen = pygame.display.set_mode((GAME_WIDTH, GAME_HIGHT), flags)
+        
         if FULLSCREEN:
             # It takes some time for the screen to adjust,
-            # so wait to let the game begin when the screen is ready.
+            # so wait to let the program resume when the screen is ready.
             pygame.time.wait(2000)
-
+        
+    def getScreen(self):
+        return self.screen
+        
+class Game:
+    def __init__(self, game_screen):
+        self.screen = game_screen
+        
+        random.choice(MUSIC_FILES)
+        
         self.surface = pygame.Surface(self.screen.get_size())
         self.clock = pygame.time.Clock()
-
-        self.music_file = random.choice(MUSIC_FILES)
-        pygame.mixer.music.load(self.music_file)
 
         self.begin_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['begin.wav'])
         self.start_beeps_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['start_beeps.wav'])
@@ -515,44 +527,17 @@ class Game:
         for player in self.players_alive:
             player.score += 1
 
-    def handle_events(self):
-        events = []
-        for event in pygame.event.get():
-            events.append(event)
-            if event.type == pygame.QUIT:
-                exit_()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_ESCAPE:
-                    exit_()
+    def handle_events(self): # Note: Removed to work nicely with the new menu
+        events = list(pygame.event.get())
         return events
 
     def start(self):
+        self.music_file = random.choice(MUSIC_FILES)
+        pygame.mixer.music.load(self.music_file)
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
         pygame.mixer.music.play(-1)
 
-        while True:
-            self.play_game()
-
-            play_again = self.ask_play_again()
-            if not play_again:
-                break
-
-    def ask_play_again(self):
-        self.clearSurface()
-        print "Play again? (y/n)"
-        # TODO: display on the screen...
-        self.updateDisplay()
-
-        while True:
-            events = self.handle_events()
-            for event in events:
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_y:
-                        return True
-                    elif event.key == pygame.K_n:
-                        return False
-
-            self.tick()
+        self.play_game()
 
     def play_game(self):
         score_cap = max(len(self.players) - 1, 1) * SCORE_CAP_MULTIPLIER
@@ -593,7 +578,8 @@ class Game:
         if DEBUG:
             self._randomize_players_positions_and_direction_vectors()
 
-        self.pre_round_wait()
+        if False == self.pre_round_wait():
+            return
         self.pre_round_start()
         self.do_play_round()
 
@@ -604,17 +590,19 @@ class Game:
 
     def pre_round_wait(self):
         while True:
-            self.handle_events()
-
             self.clearSurface()
             for player in self.players:
                 player.updatePosition()
                 player.draw()
             self.updateDisplay()
 
-            pressed_keys = pygame.key.get_pressed()
-            if pressed_keys[pygame.K_SPACE] or pressed_keys[pygame.K_RETURN]:
-                break
+            events = self.handle_events()
+            for event in events:
+                if event.type == pygame.KEYDOWN:
+                    if event.key in [pygame.K_SPACE, pygame.K_RETURN]:
+                        return True
+                    if event.key == pygame.K_ESCAPE:
+                        return False
 
             self.tick()
 
@@ -624,7 +612,6 @@ class Game:
         sound_end_time = current_time + int(sound_length * 1000)
         self.start_beeps_sound.play()
         while True:
-            self.handle_events()
             # TODO: display on the Screen 3, 2, 1, Begin!
             if pygame.time.get_ticks() >= sound_end_time:
                 break
@@ -650,6 +637,8 @@ class Game:
                     if event.key == pygame.K_SPACE:
                         paused = not paused
                         #TODO: start/stop robots
+                    if event.key == pygame.K_ESCAPE:
+                        return
 
             if not paused:
                 for player in self.players_alive[:]:
@@ -782,12 +771,66 @@ class Game:
         self.clock.tick(FPS_LIMIT)
         current_fps = self.clock.get_fps()
         pygame.display.set_caption("FPS: %f" % current_fps)
-
+        
+class MenuWrapper():
+    def __init__(self, screen, music_file = r'music\Menu music\MenuMusic - Threshold 8 bit.ogg'):
+        self.screen = screen
+        self.options = []
+        self.functions = []
+        self.music_file = music_file
+        
+    def addOption(self, caption, function = None):
+        self.options.append(caption)
+        self.functions.append(function)
+       
+    def showMenu(self):
+        if [] == self.options: # If there are no menu items, return NO_OPTION
+            return NO_OPTION
+            
+        # Start menu music!
+        pygame.mixer.music.load(self.music_file)
+        pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
+        pygame.mixer.music.play(-1)
+        
+        self.screen.fill((51,51,51))
+        
+        current_menu = menu.Menu()
+        current_menu.init(self.options, self.screen)
+        current_menu.draw()
+        
+        pygame.display.update()
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.locals.KEYDOWN:
+                    if event.key == pygame.locals.K_UP:
+                        current_menu.draw(-1)
+                    if event.key == pygame.locals.K_DOWN:
+                        current_menu.draw(1)
+                    if event.key == pygame.locals.K_RETURN:
+                        selection = current_menu.get_position()
+                        if None != self.functions[selection]:
+                            self.functions[selection]()
+                            break
+                    if event.key == pygame.locals.K_ESCAPE:
+                        sys.exit()
+                    pygame.display.update()
+                elif event.type == pygame.locals.QUIT:
+                    sys.exit()
+            pygame.time.wait(8)
+        
 def main():
     global webcam
     if DEBUG_WEBCAM:
         webcam = WebCam()
-    Game().start()
+    game_screen = Screen()
+    while True:
+        game = Game(game_screen.getScreen())
+        menu_options = [('Play (Set controls first)',game.start), ('Set Controls',None), ('Debug Options',None), ('Quit',sys.exit)]
+        game_menu = MenuWrapper(game_screen.getScreen())
+        for option, function in menu_options:
+            game_menu.addOption(option, function)
+        
+        game_menu.showMenu()
 
 if "__main__" == __name__:
     main()
