@@ -27,7 +27,7 @@ if DEBUG_WEBCAM:
 ## TODO:
 ##     - Add more bonuses (speed up/down, control reverse, players swap, electrify etc...)
 ##     - Add a margin where game info is displayed
-##     - Add black frame around board edges
+##     - Add white frame around board edges
 ##     - Show game info (Name, scores, round winner etc...)
 ##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
 ##
@@ -83,7 +83,7 @@ IMAGE_FILE_NAMES_TO_FILES = {path.basename(file): file for file in IMAGE_FILES}
 Color = namedtuple('Color', ['name', 'value', 'value_range'])
 
 COLORS = [
-    Color('Black', (0, 0, 0), (numpy.array([0, 0, 0],numpy.uint8),numpy.array([1, 1, 1],numpy.uint8))),
+    Color('Cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
     Color('Red', (255, 0, 0), (numpy.array([160, 160, 60],numpy.uint8),numpy.array([180, 255, 255],numpy.uint8))),
     Color('Green', (0, 255, 0), (numpy.array([38, 140, 60],numpy.uint8), numpy.array([75, 255, 255],numpy.uint8))),
     Color('Blue', (0, 0, 255), (numpy.array([75, 80, 80],numpy.uint8), numpy.array([130, 255, 255],numpy.uint8))),
@@ -136,7 +136,7 @@ CLEAR_COLOR = (0, 0, 0, 0)
 
 MENU_BACKGROUND_COLOR = (51, 51, 51)
 
-GAME_BACKGROUNG_COLOR = (255, 255, 255)
+GAME_BACKGROUNG_COLOR = (0, 0, 0)
 
 BONUS_SIZE = 35
 BONUS_DIMENSIONS = (BONUS_SIZE, BONUS_SIZE)
