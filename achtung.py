@@ -14,7 +14,6 @@ import os
 from os import path
 import atexit
 import menu
-import sys
 
 if DEBUG_WEBCAM:
     from WebCam import *
@@ -135,6 +134,10 @@ TRAIL_NON_COLLIDING_LAST_POINTS = 60
 
 CLEAR_COLOR = (0, 0, 0, 0)
 
+MENU_BACKGROUND_COLOR = (51, 51, 51)
+
+GAME_BACKGROUNG_COLOR = (255, 255, 255)
+
 BONUS_SIZE = 35
 BONUS_DIMENSIONS = (BONUS_SIZE, BONUS_SIZE)
 
@@ -146,7 +149,7 @@ if DEBUG_BONUSES:
 
 # Menu constants
 NO_OPTION = -1
-    
+
 #
 # Classes
 #
@@ -481,23 +484,19 @@ class Screen:
         flags = 0
         if FULLSCREEN:
             flags |= pygame.FULLSCREEN
-        self.screen = pygame.display.set_mode((GAME_WIDTH, GAME_HIGHT), flags)
-        
+        self.surface = pygame.display.set_mode((GAME_WIDTH, GAME_HIGHT), flags)
+
         if FULLSCREEN:
             # It takes some time for the screen to adjust,
             # so wait to let the program resume when the screen is ready.
             pygame.time.wait(2000)
-        
-    def getScreen(self):
-        return self.screen
-        
+
 class Game:
     def __init__(self, game_screen):
-        self.screen = game_screen
-        
-        random.choice(MUSIC_FILES)
-        
-        self.surface = pygame.Surface(self.screen.get_size())
+        self.surface = game_screen.surface
+
+        self.music_file = random.choice(MUSIC_FILES)
+
         self.clock = pygame.time.Clock()
 
         self.begin_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['begin.wav'])
@@ -508,6 +507,11 @@ class Game:
 
         self.players = [Player(self.surface, color, controller, self.clock) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
+
+        menu_options = [('Play (Set controls first)',self.play_game), ('Set Controls',None), ('Debug Options',None), ('Quit',exit_)]
+        self.menu = MenuWrapper(self.surface, self.clock)
+        for option, function in menu_options:
+            self.menu.addOption(option, function)
 
     def _randomize_players_positions_and_direction_vectors(self):
         for player in self.players:
@@ -532,15 +536,15 @@ class Game:
         return events
 
     def start(self):
-        self.music_file = random.choice(MUSIC_FILES)
-        pygame.mixer.music.load(self.music_file)
-        pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
-        pygame.mixer.music.play(-1)
-
-        self.play_game()
+        while True:
+            self.menu.showMenu()
 
     def play_game(self):
         score_cap = max(len(self.players) - 1, 1) * SCORE_CAP_MULTIPLIER
+
+        pygame.mixer.music.load(self.music_file)
+        pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
+        pygame.mixer.music.play(-1)
 
         if DEBUG_SINGLE_PLAYER:
             round_count = 2
@@ -719,10 +723,9 @@ class Game:
         return bonus
 
     def clearSurface(self):
-        self.surface.fill((255, 255, 255))
+        self.surface.fill(GAME_BACKGROUNG_COLOR)
 
     def updateDisplay(self):
-        self.screen.blit(self.surface, (0, 0))
         pygame.display.flip()
 
     def playerCollidesWithBonus(self, player, bonus):
@@ -771,33 +774,34 @@ class Game:
         self.clock.tick(FPS_LIMIT)
         current_fps = self.clock.get_fps()
         pygame.display.set_caption("FPS: %f" % current_fps)
-        
+
 class MenuWrapper():
-    def __init__(self, screen, music_file = r'music\Menu music\MenuMusic - Threshold 8 bit.ogg'):
+    def __init__(self, screen, clock, music_file = r'music\Menu music\MenuMusic - Threshold 8 bit.ogg'):
         self.screen = screen
+        self.clock = clock
         self.options = []
         self.functions = []
         self.music_file = music_file
-        
+
     def addOption(self, caption, function = None):
         self.options.append(caption)
         self.functions.append(function)
-       
+
     def showMenu(self):
         if [] == self.options: # If there are no menu items, return NO_OPTION
             return NO_OPTION
-            
+
         # Start menu music!
         pygame.mixer.music.load(self.music_file)
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
         pygame.mixer.music.play(-1)
-        
-        self.screen.fill((51,51,51))
-        
+
+        self.screen.fill(MENU_BACKGROUND_COLOR)
+
         current_menu = menu.Menu()
         current_menu.init(self.options, self.screen)
         current_menu.draw()
-        
+
         pygame.display.update()
         while True:
             finished = False
@@ -814,28 +818,24 @@ class MenuWrapper():
                             finished = True
                             break
                     elif event.key == pygame.locals.K_ESCAPE:
-                        sys.exit()
+                        exit_()
                     pygame.display.update()
                 elif event.type == pygame.locals.QUIT:
-                    sys.exit()
+                    exit_()
             if finished:
                 break
-            pygame.time.wait(8)
-            
-        print "Finished running"
-        
+            self.clock.tick(FPS_LIMIT)
+            current_fps = self.clock.get_fps()
+            pygame.display.set_caption("FPS: %f" % current_fps)
+
 def main():
     global webcam
     if DEBUG_WEBCAM:
         webcam = WebCam()
     game_screen = Screen()
-    while True:
-        game = Game(game_screen.getScreen())
-        menu_options = [('Play (Set controls first)',game.start), ('Set Controls',None), ('Debug Options',None), ('Quit',sys.exit)]
-        game_menu = MenuWrapper(game_screen.getScreen())
-        for option, function in menu_options:
-            game_menu.addOption(option, function)
-        game_menu.showMenu()
+    game = Game(game_screen)
+    game.start()
+    exit_()
 
 if "__main__" == __name__:
     main()
