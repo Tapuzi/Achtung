@@ -132,7 +132,7 @@ if DEBUG:
 
 SPEED_MODIFICATION_RATIO = 0.50
 
-TRAIL_NON_COLLIDING_LAST_POINTS = 60
+NON_COLLIDING_TRAIL_MAX_LENGTH = PLAYER_DIAMETER * 2
 
 CLEAR_COLOR = (0, 0, 0, 0)
 
@@ -248,21 +248,25 @@ class Trail:
         self.game_surface = game_surface
         self.surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
         self.color = color
-        self.last_points = []
+        self.last_points_and_distances = []
+        self.non_colliding_trail_length = 0
         self.self_collision_surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
 
     def reset(self):
-        self.last_points = []
+        self.last_points_and_distances = []
+        self.non_colliding_trail_length = 0
         self.self_collision_surface.fill(CLEAR_COLOR)
         self.surface.fill(CLEAR_COLOR)
 
-    def addPoint(self, point):
+    def addPoint(self, point, distance_from_last_point=0):
         int_point = (int(round(point.x)), int(round(point.y)))
         pygame.draw.circle(self.surface, self.color.value, int_point, TRAIL_WIDTH / 2)
+        self.last_points_and_distances.append((int_point, distance_from_last_point))
 
-        self.last_points.append(int_point)
-        if len(self.last_points) > TRAIL_NON_COLLIDING_LAST_POINTS:
-            first_last_point = self.last_points.pop(0)
+        self.non_colliding_trail_length += distance_from_last_point
+        while self.non_colliding_trail_length > NON_COLLIDING_TRAIL_MAX_LENGTH:
+            first_last_point, distance = self.last_points_and_distances.pop(0)
+            self.non_colliding_trail_length -= distance
             self_collision_trail_color = (128, 0, 128) if DEBUG_TRAIL else self.color.value
             pygame.draw.circle(self.self_collision_surface, self_collision_trail_color, first_last_point, TRAIL_WIDTH / 2)
 
@@ -338,6 +342,8 @@ class Player:
         self.alive = True
         self.trail.reset()
         self.creating_hole = False
+        self.last_position = None
+        self.hole_length_remaining = 0
         self.stop()
         self.resetTimeToNextHole()
 
@@ -449,16 +455,19 @@ class Player:
         self.surface.fill(CLEAR_COLOR)
         pygame.draw.circle(self.surface, self.color.value, (PLAYER_RADIUS, PLAYER_RADIUS), PLAYER_RADIUS)
 
-        if self.creating_hole and self.last_position is not None:
+        distance_from_last_point = 0
+        if self.last_position is not None:
             delta = self.position - self.last_position
-            distance = delta.get_length()
-            self.hole_length_remaining -= distance
-            if self.hole_length_remaining <= 0:
-                self.creating_hole = False
-                self.resetTimeToNextHole()
+            distance_from_last_point = delta.get_length()
+            if self.creating_hole:
+                self.hole_length_remaining -= distance_from_last_point
+                if self.hole_length_remaining <= 0:
+                    self.creating_hole = False
+                    self.resetTimeToNextHole()
+                    distance_from_last_point = 0
 
         if add_to_trail and not self.creating_hole:
-            self.trail.addPoint(Vec2d(self.position))
+            self.trail.addPoint(Vec2d(self.position), distance_from_last_point)
 
         self.last_position = Vec2d(self.position)
 
