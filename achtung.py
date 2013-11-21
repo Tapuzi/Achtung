@@ -106,7 +106,6 @@ TIME_TO_HOLE_MIN = 1.25 * 1000
 TIME_TO_HOLE_MAX = 1.75 * 1000
 HOLE_LENGTH = PLAYER_DIAMETER * 2
 
-
 SCORE_CAP_MULTIPLIER = 5
 
 BACKGROUND_MUSIC_VOLUME_LOW = 0.3
@@ -573,6 +572,9 @@ class Game:
 
         if DEBUG_SINGLE_PLAYER:
             round_count = 2
+
+        for player in self.players:
+            player.score = 0
 
         while True:
             self.play_round()
