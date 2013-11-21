@@ -95,6 +95,7 @@ COMPORTS = ['COM10']
 
 TRAIL_WIDTH = 3 * 2
 PLAYER_RADIUS = 7
+PLAYER_DIAMETER = PLAYER_RADIUS * 2
 
 GAME_WIDTH = 500
 GAME_HIGHT = 500
@@ -103,7 +104,8 @@ FPS_LIMIT = 100
 
 TIME_TO_HOLE_MIN = 1.25 * 1000
 TIME_TO_HOLE_MAX = 1.75 * 1000
-HOLE_TIME_INTERVAL = 0.3 * 1000
+HOLE_LENGTH = PLAYER_DIAMETER * 2
+
 
 SCORE_CAP_MULTIPLIER = 5
 
@@ -306,24 +308,24 @@ class RobotController(object):
 
 
 class Player:
-    def __init__(self, game_surface, color, controller, clock):
+    def __init__(self, game_surface, color, controller):
         self.game_surface = game_surface
-        self.surface = pygame.Surface((PLAYER_RADIUS * 2, PLAYER_RADIUS * 2), flags=pygame.SRCALPHA)
+        self.surface = pygame.Surface((PLAYER_DIAMETER, PLAYER_DIAMETER), flags=pygame.SRCALPHA)
         self.color = color
         self.lowerColor = color.value_range[0]
         self.upperColor = color.value_range[1]
         self.alive = True
         self.direction = None
         self.position = None
+        self.last_position = None
         self.surface_position = None
         self.robot_speed = 0
         self.movement_speed = 0
         self.trail = Trail(self.game_surface, color)
         self.controller = controller
-        self.clock = clock
 
         self.time_to_next_hole = 0
-        self.time_to_hole_end = 0
+        self.hole_length_remaining = 0
         self.creating_hole = False
         self.resetTimeToNextHole()
         self.score = 0
@@ -379,31 +381,23 @@ class Player:
     def resetTimeToNextHole(self):
         self.time_to_next_hole = random.uniform(TIME_TO_HOLE_MIN, TIME_TO_HOLE_MAX)
 
-    def resetTimeToHoleEnd(self):
-        self.time_to_hole_end = HOLE_TIME_INTERVAL
+    def tick(self, tick_duration):
+        self.tick_duration = tick_duration
 
-    def creatingHole(self):
-        """Return True/False whether the player is creating a hole right now or not"""
-        last_tick_duration = self.clock.get_time()
+        if DEBUG:
+            self._move()
 
-        if self.creating_hole:
-            self.time_to_hole_end -= last_tick_duration
-            if self.time_to_hole_end <= 0:
-                self.creating_hole = False
-                self.resetTimeToNextHole()
-        else:
-            self.time_to_next_hole -= last_tick_duration
+        if not self.creating_hole:
+            self.time_to_next_hole -= tick_duration
             if self.time_to_next_hole <= 0:
                 self.creating_hole = True
-                self.resetTimeToHoleEnd()
-
-        return self.creating_hole
+                self.hole_length_remaining = HOLE_LENGTH
 
     def _move(self):
         assert DEBUG
-        last_tick_duration = self.clock.get_time() / 1000.0
-        rotation = ROTATION_SPEED * last_tick_duration
-        movement = self.movement_speed * last_tick_duration
+        tick_duration_seconds = self.tick_duration / 1000.0
+        rotation = ROTATION_SPEED * tick_duration_seconds
+        movement = self.movement_speed * tick_duration_seconds
 
         if self.direction == LEFT:
             self.direction_vector.rotate(-rotation)
@@ -450,20 +444,23 @@ class Player:
                     raise RobotNotFoundError()
 
     def updatePosition(self, add_to_trail=False):
-        #TODO: -measure distance from last point and add to hole length var
-        #      -stop creating hole when reaching target value..
-
-
-        self.position = self.getRobotPositionFromCamera()
+        self.position = Vec2d(self.getRobotPositionFromCamera())
         self.surface_position = (int(self.position.x - PLAYER_RADIUS), int(self.position.y - PLAYER_RADIUS))
         self.surface.fill(CLEAR_COLOR)
-        if DEBUG:
-            color = (90, 180, 90)
-        else:
-            color = self.color.value
         pygame.draw.circle(self.surface, self.color.value, (PLAYER_RADIUS, PLAYER_RADIUS), PLAYER_RADIUS)
-        if add_to_trail and not self.creatingHole():
+
+        if self.creating_hole and self.last_position is not None:
+            delta = self.position - self.last_position
+            distance = delta.get_length()
+            self.hole_length_remaining -= distance
+            if self.hole_length_remaining <= 0:
+                self.creating_hole = False
+                self.resetTimeToNextHole()
+
+        if add_to_trail and not self.creating_hole:
             self.trail.addPoint(Vec2d(self.position))
+
+        self.last_position = Vec2d(self.position)
 
     def updateDirection(self):
         self.direction = self.controller.getDirection()
@@ -508,7 +505,7 @@ class Game:
 
         self.controllers = getControllers(PLAYERS_COUNT)
 
-        self.players = [Player(self.surface, color, controller, self.clock) for color, controller in zip(COLORS, self.controllers)]
+        self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
 
         menu_options = [('Play (Set controls first)',self.play_game), ('Set Controls',None), ('Debug Options',None), ('Quit',exit_)]
@@ -656,6 +653,7 @@ class Game:
             player.go()
 
         while True:
+            tick_duration = self.tick()
             events = self.handle_events()
             for event in events:
                 if event.type == pygame.KEYDOWN:
@@ -666,13 +664,13 @@ class Game:
             if not paused:
                 for player in self.players_alive[:]:
                     try:
+                        player.tick(tick_duration)
                         player.updatePosition(add_to_trail=True)
                         player.updateDirection()
                     except RobotNotFoundError:
                         self.kill_player(player)
 
-                last_tick_duration = self.clock.get_time()
-                next_bonus_time -= last_tick_duration
+                next_bonus_time -= tick_duration
                 if next_bonus_time <= 0:
                     bonus = self.get_randomized_bonus()
                     bonuses.append(bonus)
@@ -692,8 +690,7 @@ class Game:
 
                 for player in self.players_alive[:]:
                     for bonus in activated_bonuses:
-                        last_tick_duration = self.clock.get_time()
-                        bonus.duration -= last_tick_duration
+                        bonus.duration -= tick_duration
                         if bonus.duration <= 0:
                             bonus.deactivate()
                             activated_bonuses.remove(bonus)
@@ -719,12 +716,6 @@ class Game:
                 if len(self.players_alive) <= 1:
                     if not (DEBUG_SINGLE_PLAYER and len(self.players_alive) == 1):
                         break
-
-                if DEBUG:
-                    for player in self.players_alive:
-                        player._move()
-
-            self.tick()
 
         pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
 
@@ -790,9 +781,10 @@ class Game:
 
     def tick(self):
         """Wait for the next game tick"""
-        self.clock.tick(FPS_LIMIT)
+        tick_duration = self.clock.tick(FPS_LIMIT)
         current_fps = self.clock.get_fps()
         pygame.display.set_caption("FPS: %f" % current_fps)
+        return tick_duration
 
 class MenuWrapper():
     def __init__(self, screen, clock, music_file = r'music\Menu music\MenuMusic - Threshold 8 bit.ogg'):
