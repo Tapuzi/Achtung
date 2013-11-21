@@ -713,6 +713,10 @@ class Game:
                     if self.playerCollidesWithWalls(player):
                         self.kill_player(player)
 
+                    for other_player in (p for p in self.players if p != player):
+                        if self.playerCollidesWithOtherPlayer(player, other_player):
+                            self.kill_player(player)
+
                     if self.playerCollidesWithItself(player):
                         self.kill_player(player)
 
@@ -767,6 +771,18 @@ class Game:
         bottom_wall_collision = y + PLAYER_RADIUS > GAME_HIGHT
         any_wall_collision = left_wall_collision or top_wall_collision or right_wall_collision or bottom_wall_collision
         return any_wall_collision
+
+    def playerCollidesWithOtherPlayer(self, player, other_player):
+        player_mask = pygame.mask.from_surface(player.surface)
+        other_player_mask = pygame.mask.from_surface(other_player.surface)
+
+        other_player_offset = Vec2d(other_player.surface_position) - Vec2d(player.surface_position)
+
+        overlap_point = player_mask.overlap(other_player_mask, other_player_offset)
+        if overlap_point is None:
+            return False
+        else:
+            return True
 
     def playerCollidesWithItself(self, player):
         player_mask = pygame.mask.from_surface(player.surface)
