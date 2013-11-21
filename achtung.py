@@ -491,6 +491,9 @@ class Screen:
             # so wait to let the program resume when the screen is ready.
             pygame.time.wait(2000)
 
+class EscapeException(Exception):
+    pass
+
 class Game:
     def __init__(self, game_screen):
         self.surface = game_screen.surface
@@ -535,9 +538,25 @@ class Game:
         events = list(pygame.event.get())
         return events
 
+    def handle_events(self):
+        events = list(pygame.event.get())
+        for event in events:
+            if event.type == pygame.QUIT:
+                exit_()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_ESCAPE:
+                    self.escape()
+        return events
+
     def start(self):
         while True:
-            self.menu.showMenu()
+            try:
+                self.menu.showMenu()
+            except EscapeException:
+                pass
+
+    def escape(self):
+        raise EscapeException()
 
     def play_game(self):
         score_cap = max(len(self.players) - 1, 1) * SCORE_CAP_MULTIPLIER
@@ -582,8 +601,7 @@ class Game:
         if DEBUG:
             self._randomize_players_positions_and_direction_vectors()
 
-        if False == self.pre_round_wait():
-            return
+        self.pre_round_wait()
         self.pre_round_start()
         self.do_play_round()
 
@@ -594,19 +612,17 @@ class Game:
 
     def pre_round_wait(self):
         while True:
+            events = self.handle_events()
+
             self.clearSurface()
             for player in self.players:
                 player.updatePosition()
                 player.draw()
             self.updateDisplay()
 
-            events = self.handle_events()
             for event in events:
-                if event.type == pygame.KEYDOWN:
-                    if event.key in [pygame.K_SPACE, pygame.K_RETURN]:
-                        return True
-                    if event.key == pygame.K_ESCAPE:
-                        return False
+               if event.type == pygame.KEYDOWN and event.key in [pygame.K_SPACE, pygame.K_RETURN]:
+                    return True
 
             self.tick()
 
@@ -616,6 +632,11 @@ class Game:
         sound_end_time = current_time + int(sound_length * 1000)
         self.start_beeps_sound.play()
         while True:
+            try:
+                self.handle_events()
+            except EscapeException:
+                self.start_beeps_sound.stop()
+                raise
             # TODO: display on the Screen 3, 2, 1, Begin!
             if pygame.time.get_ticks() >= sound_end_time:
                 break
@@ -641,8 +662,6 @@ class Game:
                     if event.key == pygame.K_SPACE:
                         paused = not paused
                         #TODO: start/stop robots
-                    if event.key == pygame.K_ESCAPE:
-                        return
 
             if not paused:
                 for player in self.players_alive[:]:
@@ -811,7 +830,7 @@ class MenuWrapper():
                         current_menu.draw(-1)
                     elif event.key == pygame.locals.K_DOWN:
                         current_menu.draw(1)
-                    elif event.key == pygame.locals.K_RETURN:
+                    elif event.key in [pygame.locals.K_RETURN, pygame.K_KP_ENTER]:
                         selection = current_menu.get_position()
                         if None != self.functions[selection]:
                             self.functions[selection]()
