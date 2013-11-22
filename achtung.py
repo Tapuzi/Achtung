@@ -482,10 +482,20 @@ class MusicMixer:
     def __init__(self):
         self.background_music_volume_low = 0.3
         self.background_music_volume_normal = 0.9
+        self.background_music_file = None
         pygame.mixer.music.set_volume(self.background_music_volume_low)
         
-    def playBackgroundMusic(self, file):
-        pygame.mixer.music.load(file)
+    def setBackgroundMusic(self, file):
+        if self.background_music_file == file:
+            return
+        self.background_music_file = file
+        self.playBackgroundMusic()
+        
+    def playBackgroundMusic(self):
+        pygame.mixer.music.load(self.background_music_file)
+        pygame.mixer.music.play(-1)
+        
+    def replayBackgroundMusic(self):
         pygame.mixer.music.play(-1)
         
     def setVolume(self, volume):
@@ -583,7 +593,7 @@ class Game:
     def play_game(self):
         score_cap = max(len(self.players) - 1, 1) * SCORE_CAP_MULTIPLIER
 
-        self.music_mixer.playBackgroundMusic(self.music_file)
+        self.music_mixer.setBackgroundMusic(self.music_file)
 
         if DEBUG_SINGLE_PLAYER:
             round_count = 2

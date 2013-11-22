@@ -194,7 +194,7 @@ class MenuWrapper():
 
         # Start menu music!
         if None != self.music_file:
-            self.music_mixer.playBackgroundMusic(self.music_file)
+            self.music_mixer.setBackgroundMusic(self.music_file)
 
         self.screen.fill(MENU_BACKGROUND_COLOR)
 
