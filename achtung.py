@@ -477,30 +477,30 @@ class Player:
     def electrify(self):
         """Shock player with electric pulse"""
         pass
-        
+
 class MusicMixer:
     def __init__(self):
         self.background_music_volume_low = 0.3
         self.background_music_volume_normal = 0.9
         self.background_music_file = None
         pygame.mixer.music.set_volume(self.background_music_volume_low)
-        
+
     def setBackgroundMusic(self, file):
         if self.background_music_file == file:
             return
         self.background_music_file = file
         self.playBackgroundMusic()
-        
+
     def playBackgroundMusic(self):
         pygame.mixer.music.load(self.background_music_file)
         pygame.mixer.music.play(-1)
-        
+
     def replayBackgroundMusic(self):
         pygame.mixer.music.play(-1)
-        
+
     def setVolume(self, volume):
-        pygame.mixer.music.set_volume(background_music_volume_normal)
-        
+        pygame.mixer.music.set_volume(volume)
+
 class Screen:
     def __init__(self):
         flags = 0
@@ -533,17 +533,17 @@ class Game:
 
         self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
-        
+
         # Set menus
         self.main_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer)
         self.set_controls_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer, music_file = None)
 
         main_menu_options = [('Play (Set controls first)',self.play_game), ('Set Controls',self.set_controls_menu.showMenu), ('Debug Options',None), ('Quit',exit_)]
-        set_controls_menu_options = [('Player 1 (Unset)', None), ('Player 2 (Unset)', None), ('Player 3 (Unset)', None), ('Player 4 (Unset)', None), ('Quit', self.main_menu.showMenu)]
-        
+        set_controls_menu_options = [('Player 1 (Unset)', None), ('Player 2 (Unset)', None), ('Player 3 (Unset)', None), ('Player 4 (Unset)', None), ('Back', self.main_menu.showMenu)]
+
         self.main_menu.setOptions(main_menu_options)
         self.set_controls_menu.setOptions(set_controls_menu_options)
-        
+
         self.main_menu.setExitFunction(exit_)
         self.set_controls_menu.setExitFunction(self.main_menu.showMenu)
 
@@ -636,7 +636,12 @@ class Game:
 
         self.pre_round_wait()
         self.pre_round_start()
-        self.do_play_round()
+
+        self.music_mixer.setVolume(self.music_mixer.background_music_volume_normal)
+        try:
+            self.do_play_round()
+        finally:
+            self.music_mixer.setVolume(self.music_mixer.background_music_volume_low)
 
         #TODO: replace with HUD updates
         for player in self.players:
@@ -677,13 +682,11 @@ class Game:
 
     def do_play_round(self):
         paused = False
-
-        self.begin_sound.play()
-        self.music_mixer.setVolume(self.music_mixer.background_music_volume_normal)
-
         bonuses = []
         activated_bonuses = []
         next_bonus_time = self.get_randomized_next_bonus_time()
+
+        self.begin_sound.play()
 
         for player in self.players:
             player.go()
@@ -755,9 +758,8 @@ class Game:
                 # Check end conditions
                 if len(self.players_alive) <= 1:
                     if not (DEBUG_SINGLE_PLAYER and len(self.players_alive) == 1):
+                        print 'dead'
                         break
-
-        self.music_mixer.setVolume(self.music_mixer.background_music_volume_low)
 
     def get_randomized_next_bonus_time(self):
         next_bonus_time = random.uniform(TIME_TO_BONUS_MIN, TIME_TO_BONUS_MAX)
