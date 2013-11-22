@@ -96,6 +96,7 @@ COMPORTS = ['COM10']
 TRAIL_WIDTH = 3 * 2
 PLAYER_RADIUS = 7
 PLAYER_DIAMETER = PLAYER_RADIUS * 2
+PLAYER_BORDER_WIDTH = 1
 
 GAME_WIDTH = 500
 GAME_HIGHT = 500
@@ -446,7 +447,8 @@ class Player:
         self.position = Vec2d(self.getRobotPositionFromCamera())
         self.surface_position = (int(self.position.x - PLAYER_RADIUS), int(self.position.y - PLAYER_RADIUS))
         self.surface.fill(CLEAR_COLOR)
-        pygame.draw.circle(self.surface, self.color.value, (PLAYER_RADIUS, PLAYER_RADIUS), PLAYER_RADIUS)
+        pygame.draw.circle(self.surface, GAME_BACKGROUNG_COLOR, (PLAYER_RADIUS, PLAYER_RADIUS), PLAYER_RADIUS)
+        pygame.draw.circle(self.surface, self.color.value, (PLAYER_RADIUS, PLAYER_RADIUS), PLAYER_RADIUS, PLAYER_BORDER_WIDTH)
 
         distance_from_last_point = 0
         if self.last_position is not None:
