@@ -19,6 +19,7 @@ if not pygame.display.get_init():
 if not pygame.font.get_init():
     pygame.font.init()
 
+MENU_BACKGROUND_COLOR = (51, 51, 51)
 
 class Menu:
     list = []
@@ -161,3 +162,65 @@ if __name__ == "__main__":
                 sys.exit()
         pygame.time.wait(8)
         
+        
+class MenuWrapper():
+    def __init__(self, screen, clock, music_mixer, music_file = r'music\Menu music\MenuMusic - Threshold 8 bit.ogg', fps_limit = None):
+        self.screen = screen
+        self.clock = clock
+        self.music_mixer = music_mixer
+        self.music_file = music_file
+        self.fps_limit = fps_limit
+        
+        self.options = []
+        self.functions = []
+        self.exit_function = None
+
+    def _addOption(self, caption, function = None):
+        self.options.append(caption)
+        self.functions.append(function)
+            
+    def setOptions(self, options):
+        self.options = []
+        self.functions = []
+        for caption, function in options:
+            self._addOption(caption, function)
+            
+    def setExitFunction(self, function):
+        self.exit_function = function
+        
+    def showMenu(self):
+        if [] == self.options: # If there are no menu items, return NO_OPTION
+            return NO_OPTION
+
+        # Start menu music!
+        if None != self.music_file:
+            self.music_mixer.playBackgroundMusic(self.music_file)
+
+        self.screen.fill(MENU_BACKGROUND_COLOR)
+
+        current_menu = Menu()
+        current_menu.init(self.options, self.screen)
+        current_menu.draw()
+
+        pygame.display.update()
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.locals.KEYDOWN:
+                    if event.key == pygame.locals.K_UP:
+                        current_menu.draw(-1)
+                    elif event.key == pygame.locals.K_DOWN:
+                        current_menu.draw(1)
+                    elif event.key in [pygame.locals.K_RETURN, pygame.K_KP_ENTER]:
+                        selection = current_menu.get_position()
+                        if None != self.functions[selection]:
+                            return self.functions[selection]
+                    elif event.key == pygame.locals.K_ESCAPE:
+                        self.exit_function()
+                    pygame.display.update()
+                elif event.type == pygame.locals.QUIT:
+                    self.exit_function()
+                    
+            if None != self.fps_limit:
+                self.clock.tick(FPS_LIMIT)
+                current_fps = self.clock.get_fps()
+                pygame.display.set_caption("FPS: %f" % current_fps)

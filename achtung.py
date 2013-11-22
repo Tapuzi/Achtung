@@ -108,10 +108,6 @@ HOLE_LENGTH = PLAYER_DIAMETER * 2
 
 SCORE_CAP_MULTIPLIER = 5
 
-BACKGROUND_MUSIC_VOLUME_LOW = 0.3
-BACKGROUND_MUSIC_VOLUME_NORMAL = 0.9
-
-
 MAX_WHEEL_SPEED = 255
 MIN_WHEEL_SPEED = 0
 
@@ -134,8 +130,6 @@ SPEED_MODIFICATION_RATIO = 0.50
 NON_COLLIDING_TRAIL_MAX_LENGTH = PLAYER_DIAMETER * 2
 
 CLEAR_COLOR = (0, 0, 0, 0)
-
-MENU_BACKGROUND_COLOR = (51, 51, 51)
 
 GAME_BACKGROUNG_COLOR = (0, 0, 0)
 
@@ -483,7 +477,20 @@ class Player:
     def electrify(self):
         """Shock player with electric pulse"""
         pass
-
+        
+class MusicMixer:
+    def __init__(self):
+        self.background_music_volume_low = 0.3
+        self.background_music_volume_normal = 0.9
+        pygame.mixer.music.set_volume(self.background_music_volume_low)
+        
+    def playBackgroundMusic(self, file):
+        pygame.mixer.music.load(file)
+        pygame.mixer.music.play(-1)
+        
+    def setVolume(self, volume):
+        pygame.mixer.music.set_volume(background_music_volume_normal)
+        
 class Screen:
     def __init__(self):
         flags = 0
@@ -500,8 +507,9 @@ class EscapeException(Exception):
     pass
 
 class Game:
-    def __init__(self, game_screen):
+    def __init__(self, game_screen, music_mixer):
         self.surface = game_screen.surface
+        self.music_mixer = music_mixer
 
         self.music_file = random.choice(MUSIC_FILES)
 
@@ -515,11 +523,19 @@ class Game:
 
         self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, self.controllers)]
         self.players_alive = self.players[:]
+        
+        # Set menus
+        self.main_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer)
+        self.set_controls_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer, music_file = None)
 
-        menu_options = [('Play (Set controls first)',self.play_game), ('Set Controls',None), ('Debug Options',None), ('Quit',exit_)]
-        self.menu = MenuWrapper(self.surface, self.clock)
-        for option, function in menu_options:
-            self.menu.addOption(option, function)
+        main_menu_options = [('Play (Set controls first)',self.play_game), ('Set Controls',self.set_controls_menu.showMenu), ('Debug Options',None), ('Quit',exit_)]
+        set_controls_menu_options = [('Player 1 (Unset)', None), ('Player 2 (Unset)', None), ('Player 3 (Unset)', None), ('Player 4 (Unset)', None), ('Quit', self.main_menu.showMenu)]
+        
+        self.main_menu.setOptions(main_menu_options)
+        self.set_controls_menu.setOptions(set_controls_menu_options)
+        
+        self.main_menu.setExitFunction(exit_)
+        self.set_controls_menu.setExitFunction(self.main_menu.showMenu)
 
     def _randomize_players_positions_and_direction_vectors(self):
         for player in self.players:
@@ -556,7 +572,8 @@ class Game:
     def start(self):
         while True:
             try:
-                self.menu.showMenu()
+                returnedFunction = self.main_menu.showMenu()
+                returnedFunction()
             except EscapeException:
                 pass
 
@@ -566,9 +583,7 @@ class Game:
     def play_game(self):
         score_cap = max(len(self.players) - 1, 1) * SCORE_CAP_MULTIPLIER
 
-        pygame.mixer.music.load(self.music_file)
-        pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
-        pygame.mixer.music.play(-1)
+        self.music_mixer.playBackgroundMusic(self.music_file)
 
         if DEBUG_SINGLE_PLAYER:
             round_count = 2
@@ -654,7 +669,7 @@ class Game:
         paused = False
 
         self.begin_sound.play()
-        pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_NORMAL)
+        self.music_mixer.setVolume(self.music_mixer.background_music_volume_normal)
 
         bonuses = []
         activated_bonuses = []
@@ -732,7 +747,7 @@ class Game:
                     if not (DEBUG_SINGLE_PLAYER and len(self.players_alive) == 1):
                         break
 
-        pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
+        self.music_mixer.setVolume(self.music_mixer.background_music_volume_low)
 
     def get_randomized_next_bonus_time(self):
         next_bonus_time = random.uniform(TIME_TO_BONUS_MIN, TIME_TO_BONUS_MAX)
@@ -813,65 +828,13 @@ class Game:
         pygame.display.set_caption("FPS: %f" % current_fps)
         return tick_duration
 
-class MenuWrapper():
-    def __init__(self, screen, clock, music_file = r'music\Menu music\MenuMusic - Threshold 8 bit.ogg'):
-        self.screen = screen
-        self.clock = clock
-        self.options = []
-        self.functions = []
-        self.music_file = music_file
-
-    def addOption(self, caption, function = None):
-        self.options.append(caption)
-        self.functions.append(function)
-
-    def showMenu(self):
-        if [] == self.options: # If there are no menu items, return NO_OPTION
-            return NO_OPTION
-
-        # Start menu music!
-        pygame.mixer.music.load(self.music_file)
-        pygame.mixer.music.set_volume(BACKGROUND_MUSIC_VOLUME_LOW)
-        pygame.mixer.music.play(-1)
-
-        self.screen.fill(MENU_BACKGROUND_COLOR)
-
-        current_menu = menu.Menu()
-        current_menu.init(self.options, self.screen)
-        current_menu.draw()
-
-        pygame.display.update()
-        while True:
-            finished = False
-            for event in pygame.event.get():
-                if event.type == pygame.locals.KEYDOWN:
-                    if event.key == pygame.locals.K_UP:
-                        current_menu.draw(-1)
-                    elif event.key == pygame.locals.K_DOWN:
-                        current_menu.draw(1)
-                    elif event.key in [pygame.locals.K_RETURN, pygame.K_KP_ENTER]:
-                        selection = current_menu.get_position()
-                        if None != self.functions[selection]:
-                            self.functions[selection]()
-                            finished = True
-                            break
-                    elif event.key == pygame.locals.K_ESCAPE:
-                        exit_()
-                    pygame.display.update()
-                elif event.type == pygame.locals.QUIT:
-                    exit_()
-            if finished:
-                break
-            self.clock.tick(FPS_LIMIT)
-            current_fps = self.clock.get_fps()
-            pygame.display.set_caption("FPS: %f" % current_fps)
-
 def main():
     global webcam
     if DEBUG_WEBCAM:
         webcam = WebCam()
     game_screen = Screen()
-    game = Game(game_screen)
+    music_mixer = MusicMixer()
+    game = Game(game_screen, music_mixer)
     game.start()
     exit_()
 
