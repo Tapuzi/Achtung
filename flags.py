@@ -2,6 +2,7 @@
 PLAYERS_COUNT = 1
 
 USE_MOUSE = False
+USE_WEBCAM = False
 
 DEBUG = True
 DEBUG_WEBCAM = False
