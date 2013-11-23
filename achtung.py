@@ -14,6 +14,7 @@ import os
 from os import path
 import atexit
 import menu
+import pdb
 
 from Controllers import *
 
@@ -629,11 +630,15 @@ class Player:
         """change player radius after initialisation SHOULD BE CHANGED!! NOT GOOD!"""
         if self.radius == SEARCH_RADIUS:
             self.radius = 100
+            
+    def setController(self, controller):
+        """Change the player's controller"""
+        self.controller = controller
 
 class MusicMixer:
     def __init__(self):
-        self.background_music_volume_low = 0.3
-        self.background_music_volume_normal = 0.9
+        self.background_music_volume_low = 0.0
+        self.background_music_volume_normal = 0.0
         self.background_music_file = None
         pygame.mixer.music.set_volume(self.background_music_volume_low)
 
@@ -681,23 +686,26 @@ class Game:
         self.start_beeps_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['start_beeps.wav'])
         self.explosion_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['80938__tony-b-kksm__soft-explosion.wav'])
 
-        self.controllers = getControllers(PLAYERS_COUNT)
-
-        self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, self.controllers)]
+        controllers = getDefaultControllers(PLAYERS_COUNT) # Note: changed this. removed self.controllers, which was unused. If it shall be used, a good version of it will be a "getControllers" method which dinamically updates the controllers.
+        self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, controllers)]
         self.players_alive = self.players[:]
 
         # Set menus
         self.main_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer)
         self.set_controls_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer, music_file = None)
-
-        main_menu_options = [('Play (Set controls first)',self.play_game), ('Set Controls',self.set_controls_menu.showMenu), ('Debug Options',None), ('Quit',exit_)]
-        set_controls_menu_options = [('Player 1 (Unset)', None), ('Player 2 (Unset)', None), ('Player 3 (Unset)', None), ('Player 4 (Unset)', None), ('Back', self.main_menu.showMenu)]
+        self.controllers_options_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer, music_file = None)
+        
+        main_menu_options = [('Play',self.play_game), ('Set Controls',self.set_controls_menu.showMenu), ('Debug Options',None), ('Quit',exit_)]
+        set_controls_menu_options = [('Player ' + str(number+1) + ': ' + self.players[number].color.name + ' (' + controllers[number].getType() + ')', self.controllers_options_menu.showMenu) for number in range(len(self.players))] + [('Back', self.main_menu.showMenu)]
+        controllers_options_menu_options = [(controller.getType() + ' ' + controller.getAdditionalInfo(), self.players[self.set_controls_menu.current_selection].setController(controller)) for controller in getControllers()] + [('Back', self.set_controls_menu.showMenu)]
 
         self.main_menu.setOptions(main_menu_options)
         self.set_controls_menu.setOptions(set_controls_menu_options)
+        self.controllers_options_menu.setOptions(controllers_options_menu_options)
 
         self.main_menu.setExitFunction(exit_)
         self.set_controls_menu.setExitFunction(self.main_menu.showMenu)
+        self.controllers_options_menu.setExitFunction(self.set_controls_menu.showMenu)
 
     def _randomize_players_positions_and_direction_vectors(self):
         for player in self.players:
@@ -732,10 +740,13 @@ class Game:
         return events
 
     def start(self):
+        currentFunction = self.main_menu.showMenu
         while True:
             try:
-                returnedFunction = self.main_menu.showMenu()
-                returnedFunction()
+                currentFunction = currentFunction()
+                if currentFunction == self.play_game:
+                    currentFunction = self.main_menu.showMenu
+                    self.play_game()
             except EscapeException:
                 pass
 

@@ -170,6 +170,7 @@ class MenuWrapper():
         self.music_mixer = music_mixer
         self.music_file = music_file
         self.fps_limit = fps_limit
+        self.current_selection = 0
         
         self.options = []
         self.functions = []
@@ -189,8 +190,8 @@ class MenuWrapper():
         self.exit_function = function
         
     def showMenu(self):
-        if [] == self.options: # If there are no menu items, return NO_OPTION
-            return NO_OPTION
+        if [] == self.options: # If there are no menu items, return self.exit_function
+            return self.exit_function
 
         # Start menu music!
         if None != self.music_file:
@@ -201,6 +202,7 @@ class MenuWrapper():
         current_menu = Menu()
         current_menu.init(self.options, self.screen)
         current_menu.draw()
+        self.current_selection = current_menu.get_position()
 
         pygame.display.update()
         while True:
@@ -211,14 +213,14 @@ class MenuWrapper():
                     elif event.key == pygame.locals.K_DOWN:
                         current_menu.draw(1)
                     elif event.key in [pygame.locals.K_RETURN, pygame.K_KP_ENTER]:
-                        selection = current_menu.get_position()
-                        if None != self.functions[selection]:
-                            return self.functions[selection]
+                        self.current_selection = current_menu.get_position()
+                        if None != self.functions[self.current_selection]:
+                            return self.functions[self.current_selection]
                     elif event.key == pygame.locals.K_ESCAPE:
-                        self.exit_function()
+                        return self.exit_function
                     pygame.display.update()
                 elif event.type == pygame.locals.QUIT:
-                    self.exit_function()
+                    return self.exit_function
                     
             if None != self.fps_limit:
                 self.clock.tick(FPS_LIMIT)

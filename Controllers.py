@@ -13,10 +13,13 @@ class Controller:
     """Abstract base class for controllers"""
     def getDirection(self):
         raise NotImplementedError()
+        
+    def getType(self):
+        return self.__class__.__name__
 
 class MouseController(Controller):
-    def __init__(self):
-        pass
+    def __init__(self, additional_info = ''):
+        self.additional_info = additional_info
 
     def getDirection(self):
         pressed_keys = pygame.mouse.get_pressed()
@@ -36,29 +39,39 @@ class MouseController(Controller):
             raise Exception('wtf')
 
         return direction
+        
+    def getAdditionalInfo(self):
+        return self.additional_info
 
 class GamepadController(Controller):
     # TODO: Implement if we want to add support, in case multiple Watches don't work well.
-    def __init__(self):
-        pass
+    def __init__(self, additional_info = ''):
+        self.additional_info = additional_info
 
     def getDirection(self):
         pass
+        
+    def getAdditionalInfo(self):
+        return self.additional_info
 
 class TouchpadController(Controller):
     # TODO: If we get really desperate about controllers,
     #       we could implement a controller from the laptop's touchpad
     #       by assigning the left side of it to LEFT and right side to RIGHT.
-    def __init__(self):
-        pass
-
+    def __init__(self, additional_info = ''):
+       self.additional_info = additional_info
+        
     def getDirection(self):
         pass
+        
+    def getAdditionalInfo(self):
+        return self.additional_info
 
 class KeyboardController(Controller):
-    def __init__(self, left_key, right_key):
+    def __init__(self, left_key , right_key, additional_info = ''):
         self.left_key = left_key
         self.right_key = right_key
+        self.additional_info = additional_info
 
     def getDirection(self):
         pressed_keys = pygame.key.get_pressed()
@@ -74,12 +87,16 @@ class KeyboardController(Controller):
             direction = STRAIGHT
 
         return direction
+        
+    def getAdditionalInfo(self):
+        return self.additional_info
 
 class XboxController(Controller):
-    def __init__(self, index):
+    def __init__(self, index, additional_info = ''):
         self.controller = pygame.joystick.Joystick(index)
         self.controller.init()
         self.x_direction = 0
+        self.additional_info = additional_info
 
     def getDirection(self):
         self.x_direction = self.controller.get_axis(4)
@@ -91,9 +108,12 @@ class XboxController(Controller):
         elif self.x_direction > 0:
             direction = RIGHT
         return direction
+        
+    def getAdditionalInfo(self):
+        return self.additional_info
 
 class WatchController(Controller):
-    def __init__(self, comPort, deviceId):
+    def __init__(self, comPort, deviceId, additional_info = ''):
         self.deviceId = deviceId
         self.lastMessage = {'buttons': 0, 'temp': 0, 'accel_z': 0, 'accel_x': 0, 'accel_y': 0, 'alt': 0}
         # Connect to the watch
@@ -136,20 +156,35 @@ class WatchController(Controller):
 
     def getDirection(self):
         return self.getOrientation()
+        
+    def getAdditionalInfo(self):
+        return self.additional_info
 
-def getControllers(amount):
+def getDefaultControllers(amount):
     watch_controllers = getWatchControllers()
     xbox_controller = getXboxControllers()
     mouse_controller = [MouseController()] if USE_MOUSE else []
     keyboard_controllers = [
-        KeyboardController(pygame.K_LEFT, pygame.K_RIGHT),
-        KeyboardController(pygame.K_z, pygame.K_c),
-        KeyboardController(pygame.K_KP4, pygame.K_KP6),
-        KeyboardController(pygame.K_b, pygame.K_m),
+        KeyboardController(pygame.K_LEFT, pygame.K_RIGHT, "Left key, Right key"),
+        KeyboardController(pygame.K_z, pygame.K_c, "z key, c key"),
+        KeyboardController(pygame.K_KP4, pygame.K_KP6, "4 key, 6 key"),
+        KeyboardController(pygame.K_b, pygame.K_m, "b key, m key"),
     ]
-
     controllers = watch_controllers + xbox_controller + mouse_controller + keyboard_controllers
     return controllers[:amount]
+    
+def getControllers():
+    watch_controllers = getWatchControllers()
+    xbox_controller = getXboxControllers()
+    mouse_controller = [MouseController()] if USE_MOUSE else []
+    keyboard_controllers = [
+        KeyboardController(pygame.K_LEFT, pygame.K_RIGHT, "Left key, Right key"),
+        KeyboardController(pygame.K_z, pygame.K_c, "z key, c key"),
+        KeyboardController(pygame.K_KP4, pygame.K_KP6, "4 key, 6 key"),
+        KeyboardController(pygame.K_b, pygame.K_m, "b key, m key"),
+    ]
+    controllers = watch_controllers + xbox_controller + mouse_controller + keyboard_controllers
+    return controllers
 
 def getXboxControllers():
     return [XboxController(i) for i in xrange(pygame.joystick.get_count())]
