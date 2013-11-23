@@ -24,10 +24,15 @@ if DEBUG_WEBCAM:
 
 ##
 ## TODO:
+##     - Add more bonuses (speed up/down, control reverse, players swap, electrify etc...)
 ##     - Add a margin where game info is displayed
+##     - Add white frame around board edges
 ##     - Show game info (Name, scores, round winner etc...)
 ##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
-##     - Add more bonuses (speed up/down, control reverse, players swap, electrify etc...)
+##
+## Fixes:
+##    - Currently taking SpeedDown bonus twice in debug mode (not real robots...)
+##      causes the player to collide with itself. Fix this by making TRAIL_NON_COLLIDING_LAST_POINTS dynamic?
 ##
 ## Improvements:
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
@@ -77,8 +82,8 @@ IMAGE_FILE_NAMES_TO_FILES = {path.basename(file): file for file in IMAGE_FILES}
 Color = namedtuple('Color', ['name', 'value', 'value_range'])
 
 COLORS = [
-    Color('Cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
-    Color('Red', (255, 0, 0), (numpy.array([0, 119, 143],numpy.uint8), numpy.array([180, 255, 163],numpy.uint8))),
+    #Color('Cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
+    #Color('Red', (255, 0, 0), (numpy.array([121, 107, 107],numpy.uint8), numpy.array([180, 178, 187],numpy.uint8))),
     Color('Green', (0, 255, 0), (numpy.array([67, 78, 72],numpy.uint8), numpy.array([116, 166, 106],numpy.uint8))),
     Color('Blue', (0, 0, 255), (numpy.array([110, 135, 109],numpy.uint8), numpy.array([130, 197, 155],numpy.uint8))),
     Color('Yellow', (255, 255, 0),(numpy.array([25, 99, 159],numpy.uint8), numpy.array([35, 180, 206],numpy.uint8)))]
@@ -87,7 +92,7 @@ COLORS = [
 IDS = ['1337' for color in COLORS]
 COMPORTS = ['COM10']
 
-TRAIL_WIDTH = 1
+TRAIL_WIDTH = 3 * 2
 PLAYER_RADIUS = 7
 PLAYER_DIAMETER = PLAYER_RADIUS * 2
 PLAYER_BORDER_WIDTH = 1
@@ -158,11 +163,12 @@ NO_OPTION = -1
 #
 # Classes
 #
+
 class gamesBordersNotFound(Exception):
     #TODO create warning that no game borders detected
     pass
 
-class webCamFailure(Exception):
+class webcamNotWorking(Exception):
     # webcam is not working properly
     pass
 
@@ -259,34 +265,27 @@ class Trail:
         self.game_surface = game_surface
         self.surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
         self.color = color
-        self.last_point = None
-        self.last_points = []
+        self.last_points_and_distances = []
         self.non_colliding_trail_length = 0
         self.self_collision_surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
 
     def reset(self):
-        self.last_points = []
-        self.last_point = None
+        self.last_points_and_distances = []
         self.non_colliding_trail_length = 0
         self.self_collision_surface.fill(CLEAR_COLOR)
         self.surface.fill(CLEAR_COLOR)
 
-    def addPoint(self, point, is_hole=False, distance_from_last_point=0):
+    def addPoint(self, point, distance_from_last_point=0):
         int_point = (int(round(point.x)), int(round(point.y)))
-        if not is_hole and self.last_point is not None:
-            pygame.draw.line(self.surface, self.color.value, self.last_point, int_point, TRAIL_WIDTH)
-
-        self.last_point = int_point
-        self.last_points.append((int_point, is_hole, distance_from_last_point))
+        pygame.draw.circle(self.surface, self.color.value, int_point, TRAIL_WIDTH / 2)
+        self.last_points_and_distances.append((int_point, distance_from_last_point))
 
         self.non_colliding_trail_length += distance_from_last_point
         while self.non_colliding_trail_length > NON_COLLIDING_TRAIL_MAX_LENGTH:
-            first_last_point, is_hole, distance = self.last_points.pop(0)
-            second_last_point, _, _ = self.last_points[0]
+            first_last_point, distance = self.last_points_and_distances.pop(0)
             self.non_colliding_trail_length -= distance
             self_collision_trail_color = (128, 0, 128) if DEBUG_TRAIL else self.color.value
-            if not is_hole:
-                pygame.draw.line(self.self_collision_surface, self_collision_trail_color, first_last_point, second_last_point, TRAIL_WIDTH)
+            pygame.draw.circle(self.self_collision_surface, self_collision_trail_color, first_last_point, TRAIL_WIDTH / 2)
 
     def draw(self):
         self.game_surface.blit(self.surface, (0, 0))
@@ -334,41 +333,43 @@ class WebCam(object):
         self.webCamCapture = cv2.VideoCapture(WEBCAM_NUMBER)
         self.size =  numpy.array([ [0,0],[GAME_WIDTH,0],[GAME_WIDTH, GAME_HIGHT],[0,GAME_HIGHT] ],numpy.float32)
         self.framesCounter = 0
+        self.frame = None
         self.numberOfFramesBetweenEachCheck = NUMBER_OF_FRAMES_BETWEEN_BORDERS_SEARCH
         self.dontStartUntilBorderIsFound()
 
+    def takePicture(self):
+        ret, frame = self.webCamCapture.read()
+        if ret:
+            self.frame = frame
+        else:
+            raise webCamFailure()
+            
+        
     def dontStartUntilBorderIsFound(self):
         """don't start game until game's frame is found, trying RECTANGLE_NOT_FOUND_LIMIT times"""
         retriesCounter = 0
-        while True:
-            ret, frame = self.webCamCapture.read()
-            if ret:
-                self.findBorder(frame)
-                if self.approx != []:
-                    break
-                if self.approx == []:
-                    retriesCounter += 1
-                if retriesCounter == RECTANGLE_NOT_FOUND_LIMIT:
-                    raise gamesBordersNotFound()
-            else:
-                raise webcamNotWorking()
+        while self.approx == []:
+            self.takePicture()
+            self.approx = self.findBorder(self.frame)
+            if self.approx == []:
+                retriesCounter += 1
+            if retriesCounter == RECTANGLE_NOT_FOUND_LIMIT:
+                raise gamesBordersNotFound()
 
     def findPlayer(self, player):
-        """if frames counter is multiple of NUMBER_OF_FRAMES_BETWEEN_RECTANGLE_SEARCH find game's borders. change frame to fit borders. find playing players in fixed frame"""
-        ret, frame = self.webCamCapture.read()
-        if ret:
-            if self.framesCounter % self.numberOfFramesBetweenEachCheck == 0:
-                self.findBorder(frame)
-                self.framesCounter = 0
-            rectFrame = self.frameToBorder(frame)
-            if DEUBG_WEBCAM_WITH_WINDOW:
-                cv2.imshow('Webcam capture', rectFrame)
-                cv2.waitKey(1)
-            position = self.findRobot(rectFrame, player)
-            self.framesCounter += 1
-            return position
-        else:
-            raise webCamFailure()
+        """if frames counter is multiple of NUMBER_OF_FRAMES_BETWEEN_RECTANGLE_SEARCH find game's borders. change frame to fit borders. find playing players in fixed frame"""    
+        if self.framesCounter % self.numberOfFramesBetweenEachCheck == 0:
+            self.findBorder(self.frame)
+            self.framesCounter = 0
+        
+        rectFrame = self.frameToBorder(self.frame)
+        if DEUBG_WEBCAM_WITH_WINDOW:
+            cv2.imshow('Webcam capture', rectFrame)
+            cv2.waitKey(1)
+        
+        position = self.findRobot(rectFrame, player)
+        self.framesCounter += 1
+        return position
 
     def findBorder(self, frame):
         """find game's borders"""
@@ -390,7 +391,7 @@ class WebCam(object):
                     maxApprox = approx
 
             if maxContourArea != MINIMUM_BORDER_SIZE:
-                self.approx = self.rectify(maxApprox) # if no frame found -> stay with last borders
+                return self.rectify(maxApprox) # if no frame found -> stay with last borders
 
     def frameToBorder(self, frame):
         """transform frame to fit to borders"""
@@ -433,7 +434,8 @@ class WebCam(object):
         else:
             player.notFound()
         return player.position
-
+        
+        
     @staticmethod
     def rectify(h):
         """this function put vertices of square of the board, in clockwise order"""
@@ -591,6 +593,7 @@ class Player:
     def updatePosition(self, add_to_trail=False):
         if DEBUG_WEBCAM:
             self.position = Vec2d(webcam.findPlayer(self))
+            
 
         self.surface_position = (int(self.position.x - PLAYER_RADIUS), int(self.position.y - PLAYER_RADIUS))
         self.surface.fill(CLEAR_COLOR)
@@ -608,8 +611,8 @@ class Player:
                     self.resetTimeToNextHole()
                     distance_from_last_point = 0
 
-        if add_to_trail:
-            self.trail.addPoint(Vec2d(self.position), self.creating_hole, distance_from_last_point)
+        if add_to_trail and not self.creating_hole:
+            self.trail.addPoint(Vec2d(self.position), distance_from_last_point)
 
         self.last_position = Vec2d(self.position)
 
@@ -630,7 +633,7 @@ class Player:
     def notFound(self):
         """if robot not found ROBOT_NOT_FOUND_LIMIT times raise robotNotFoundException"""
         if self.notFoundCounter == ROBOT_NOT_FOUND_LIMIT:
-            raise robotNotFoundException()
+            raise RobotNotFoundError()
         else:
             self.notFoundCounter += 1
 
@@ -638,7 +641,7 @@ class Player:
         """change player radius after initialisation SHOULD BE CHANGED!! NOT GOOD!"""
         if self.radius == SEARCH_RADIUS:
             self.radius = 100
-
+            
     def setController(self, controller):
         """Change the player's controller"""
         self.controller = controller
@@ -700,22 +703,20 @@ class Game:
         self.players_alive = self.players[:]
 
         # Set menus
-<<<<<<< HEAD
+
         self.main_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer)
         self.set_controls_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer, music_file = None)
         self.controllers_options_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer, music_file = None)
-
+        
         main_menu_options = [('Play',self.play_game), ('Set Controls',self.set_controls_menu.showMenu), ('Debug Options',None), ('Quit',exit_)]
         set_controls_menu_options = [('Player ' + str(number+1) + ': ' + self.players[number].color.name + ' (' + controllers[number].getType() + ')', self.controllers_options_menu.showMenu) for number in range(len(self.players))] + [('Back', self.main_menu.showMenu)]
         controllers_options_menu_options = [(controller.getType() + ' ' + controller.getAdditionalInfo(), self.players[self.set_controls_menu.current_selection].setController(controller)) for controller in getControllers()] + [('Back', self.set_controls_menu.showMenu)]
-=======
+
         self.main_menu = menu.MenuWrapper(self.screen_surface, self.clock, self.music_mixer)
         self.set_controls_menu = menu.MenuWrapper(self.screen_surface, self.clock, self.music_mixer, music_file = None)
 
         main_menu_options = [('Play (Set controls first)',self.play_game), ('Set Controls',self.set_controls_menu.showMenu), ('Debug Options',None), ('Quit',exit_)]
         set_controls_menu_options = [('Player 1 (Unset)', None), ('Player 2 (Unset)', None), ('Player 3 (Unset)', None), ('Player 4 (Unset)', None), ('Back', self.main_menu.showMenu)]
->>>>>>> origin/master
-
         self.main_menu.setOptions(main_menu_options)
         self.set_controls_menu.setOptions(set_controls_menu_options)
         self.controllers_options_menu.setOptions(controllers_options_menu_options)
@@ -833,6 +834,7 @@ class Game:
             events = self.handle_events()
 
             self.clearSurface()
+            webcam.takePicture()
             for player in self.players:
                 player.updatePosition()
                 player.draw()
@@ -882,6 +884,7 @@ class Game:
                         #TODO: start/stop robots
 
             if not paused:
+                webcam.takePicture()
                 for player in self.players_alive[:]:
                     try:
                         player.tick(tick_duration)
@@ -1001,6 +1004,8 @@ class Game:
             return True
 
     def playerCollidesWithItself(self, player):
+        if DEBUG_WEBCAM:
+            return False
         player_mask = pygame.mask.from_surface(player.surface)
         trail_mask = pygame.mask.from_surface(player.trail.self_collision_surface)
 
