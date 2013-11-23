@@ -58,7 +58,7 @@ def main():
             if DEBUG_PRINT:
                 newColors = (webcam.lowerH, webcam.lowerS, webcam.lowerV, webcam.upperH, webcam.upperS, webcam.upperV)
                 if newColors != lastColors:
-                    print "np.array([%d, %d, %d],np.uint8), np.array([%d, %d, %d],np.uint8)" % newColors
+                    print "numpy.array([%d, %d, %d],numpy.uint8), numpy.array([%d, %d, %d], numpy.uint8)" % newColors
                     lastColors = newColors
             key = cv2.waitKey(80)
             if key == 27:
