@@ -99,6 +99,12 @@ PLAYER_BORDER_WIDTH = 1
 GAME_WIDTH = 500
 GAME_HIGHT = 500
 
+GAME_BORDER_WIDTH = 10
+GAME_BORDER_COLOR = (255, 255, 255)
+
+SCREEN_WIDTH = GAME_WIDTH + GAME_BORDER_WIDTH * 2
+SCREEN_HIGHT = GAME_HIGHT + GAME_BORDER_WIDTH * 2
+
 SEARCH_RADIUS = (GAME_WIDTH / 2) - 1
 
 WEBCAM_NUMBER = 2 #default webcam is 0
@@ -658,7 +664,7 @@ class Screen:
         flags = 0
         if FULLSCREEN:
             flags |= pygame.FULLSCREEN
-        self.surface = pygame.display.set_mode((GAME_WIDTH, GAME_HIGHT), flags)
+        self.surface = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HIGHT), flags)
 
         if FULLSCREEN:
             # It takes some time for the screen to adjust,
@@ -670,8 +676,9 @@ class EscapeException(Exception):
 
 class Game:
     def __init__(self, game_screen, music_mixer):
-        self.surface = game_screen.surface
+        self.screen_surface =  game_screen.surface
         self.music_mixer = music_mixer
+        self.surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT))
 
         self.music_file = random.choice(MUSIC_FILES)
 
@@ -687,8 +694,8 @@ class Game:
         self.players_alive = self.players[:]
 
         # Set menus
-        self.main_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer)
-        self.set_controls_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer, music_file = None)
+        self.main_menu = menu.MenuWrapper(self.screen_surface, self.clock, self.music_mixer)
+        self.set_controls_menu = menu.MenuWrapper(self.screen_surface, self.clock, self.music_mixer, music_file = None)
 
         main_menu_options = [('Play (Set controls first)',self.play_game), ('Set Controls',self.set_controls_menu.showMenu), ('Debug Options',None), ('Quit',exit_)]
         set_controls_menu_options = [('Player 1 (Unset)', None), ('Player 2 (Unset)', None), ('Player 3 (Unset)', None), ('Player 4 (Unset)', None), ('Back', self.main_menu.showMenu)]
@@ -808,6 +815,7 @@ class Game:
             for player in self.players:
                 player.updatePosition()
                 player.draw()
+            self.drawBorders()
             self.updateDisplay()
 
             for event in events:
@@ -877,6 +885,7 @@ class Game:
                     player.draw()
                 for bonus in bonuses:
                     bonus.draw()
+                self.drawBorders()
                 self.updateDisplay()
 
                 for player in self.players_alive[:]:
@@ -928,7 +937,13 @@ class Game:
     def clearSurface(self):
         self.surface.fill(GAME_BACKGROUNG_COLOR)
 
+    def drawBorders(self):
+        border_rectangle = pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HIGHT)
+        #Note: A filled rectangle is drawn, but it's ok because the game board is drawn after it
+        pygame.draw.rect(self.screen_surface, GAME_BORDER_COLOR, border_rectangle)
+
     def updateDisplay(self):
+        self.screen_surface.blit(self.surface, (GAME_BORDER_WIDTH, GAME_BORDER_WIDTH))
         pygame.display.flip()
 
     def playerCollidesWithBonus(self, player, bonus):
