@@ -24,15 +24,10 @@ if DEBUG_WEBCAM:
 
 ##
 ## TODO:
-##     - Add more bonuses (speed up/down, control reverse, players swap, electrify etc...)
 ##     - Add a margin where game info is displayed
-##     - Add white frame around board edges
 ##     - Show game info (Name, scores, round winner etc...)
 ##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
-##
-## Fixes:
-##    - Currently taking SpeedDown bonus twice in debug mode (not real robots...)
-##      causes the player to collide with itself. Fix this by making TRAIL_NON_COLLIDING_LAST_POINTS dynamic?
+##     - Add more bonuses (speed up/down, control reverse, players swap, electrify etc...)
 ##
 ## Improvements:
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
@@ -643,7 +638,7 @@ class Player:
         """change player radius after initialisation SHOULD BE CHANGED!! NOT GOOD!"""
         if self.radius == SEARCH_RADIUS:
             self.radius = 100
-            
+
     def setController(self, controller):
         """Change the player's controller"""
         self.controller = controller
@@ -709,7 +704,7 @@ class Game:
         self.main_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer)
         self.set_controls_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer, music_file = None)
         self.controllers_options_menu = menu.MenuWrapper(self.surface, self.clock, self.music_mixer, music_file = None)
-        
+
         main_menu_options = [('Play',self.play_game), ('Set Controls',self.set_controls_menu.showMenu), ('Debug Options',None), ('Quit',exit_)]
         set_controls_menu_options = [('Player ' + str(number+1) + ': ' + self.players[number].color.name + ' (' + controllers[number].getType() + ')', self.controllers_options_menu.showMenu) for number in range(len(self.players))] + [('Back', self.main_menu.showMenu)]
         controllers_options_menu_options = [(controller.getType() + ' ' + controller.getAdditionalInfo(), self.players[self.set_controls_menu.current_selection].setController(controller)) for controller in getControllers()] + [('Back', self.set_controls_menu.showMenu)]
