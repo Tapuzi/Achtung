@@ -15,8 +15,6 @@ from os import path
 import atexit
 import menu
 
-if DEBUG_WEBCAM:
-    from WebCam import *
 from Controllers import *
 
 if DEBUG_WEBCAM:
@@ -84,11 +82,11 @@ Color = namedtuple('Color', ['name', 'value', 'value_range'])
 
 COLORS = [
     Color('Cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
-    Color('Red', (255, 0, 0), (numpy.array([160, 160, 60],numpy.uint8),numpy.array([180, 255, 255],numpy.uint8))),
-    Color('Green', (0, 255, 0), (numpy.array([38, 140, 60],numpy.uint8), numpy.array([75, 255, 255],numpy.uint8))),
-    Color('Blue', (0, 0, 255), (numpy.array([75, 80, 80],numpy.uint8), numpy.array([130, 255, 255],numpy.uint8))),
-    Color('Yellow', (255, 255, 0), (numpy.array([20, 100, 100],numpy.uint8), numpy.array([38, 255, 255],numpy.uint8))),
-]
+    Color('Red', (255, 0, 0), (numpy.array([0, 119, 143],numpy.uint8), numpy.array([180, 255, 163],numpy.uint8))),
+    Color('Green', (0, 255, 0), (numpy.array([67, 78, 72],numpy.uint8), numpy.array([116, 166, 106],numpy.uint8))),
+    Color('Blue', (0, 0, 255), (numpy.array([110, 135, 109],numpy.uint8), numpy.array([130, 197, 155],numpy.uint8))),
+    Color('Yellow', (255, 255, 0),(numpy.array([25, 99, 159],numpy.uint8), numpy.array([35, 180, 206],numpy.uint8)))]
+
 
 IDS = ['1337' for color in COLORS]
 COMPORTS = ['COM10']
@@ -100,6 +98,15 @@ PLAYER_BORDER_WIDTH = 1
 
 GAME_WIDTH = 500
 GAME_HIGHT = 500
+
+SEARCH_RADIUS = (GAME_WIDTH / 2) - 1
+
+WEBCAM_NUMBER = 2 #default webcam is 0
+
+ROBOT_NOT_FOUND_LIMIT = 20
+RECTANGLE_NOT_FOUND_LIMIT = 50
+NUMBER_OF_FRAMES_BETWEEN_BORDERS_SEARCH = 5000
+MINIMUM_BORDER_SIZE = 1000
 
 FPS_LIMIT = 100
 
@@ -149,8 +156,16 @@ NO_OPTION = -1
 #
 # Classes
 #
+class gamesBordersNotFound(Exception):
+    #TODO create warning that no game borders detected
+    pass
+
+class webCamFailure(Exception):
+    # webcam is not working properly
+    pass
 
 class RobotNotFoundError(Exception):
+    #TODO remove robot from playing robots list
     pass
 
 class Bonus(object):
@@ -304,6 +319,157 @@ class RobotController(object):
         self.prev_speed = self.speed
         self.prev_direction = self.direction
 
+class WebCam(object):
+    def __init__(self):
+        self.approx = []
+        self.webCamCapture = cv2.VideoCapture(WEBCAM_NUMBER)
+        self.size =  numpy.array([ [0,0],[GAME_WIDTH,0],[GAME_WIDTH, GAME_HIGHT],[0,GAME_HIGHT] ],numpy.float32)
+        self.framesCounter = 0
+        self.numberOfFramesBetweenEachCheck = NUMBER_OF_FRAMES_BETWEEN_BORDERS_SEARCH
+        self.dontStartUntilBorderIsFound()
+
+    def dontStartUntilBorderIsFound(self):
+        """don't start game until game's frame is found, trying RECTANGLE_NOT_FOUND_LIMIT times"""
+        retriesCounter = 0
+        while True:
+            ret, frame = self.webCamCapture.read()
+            if ret:
+                self.findBorder(frame)
+                if self.approx != []:
+                    break
+                if self.approx == []:
+                    retriesCounter += 1
+                if retriesCounter == RECTANGLE_NOT_FOUND_LIMIT:
+                    raise gamesBordersNotFound()
+            else:
+                raise webcamNotWorking()
+
+    def findPlayer(self, player):
+        """if frames counter is multiple of NUMBER_OF_FRAMES_BETWEEN_RECTANGLE_SEARCH find game's borders. change frame to fit borders. find playing players in fixed frame"""
+        ret, frame = self.webCamCapture.read()
+        if ret:
+            if self.framesCounter % self.numberOfFramesBetweenEachCheck == 0:
+                self.findBorder(frame)
+                self.framesCounter = 0
+            rectFrame = self.frameToBorder(frame)
+            if DEUBG_WEBCAM_WITH_WINDOW:
+                cv2.imshow('Webcam capture', rectFrame)
+                cv2.waitKey(1)
+            position = self.findRobot(rectFrame, player)
+            self.framesCounter += 1
+            return position
+        else:
+            raise webCamFailure()
+
+    def findBorder(self, frame):
+        """find game's borders"""
+        maxContourArea = MINIMUM_BORDER_SIZE #minimum borders size
+        maxCnt = 0
+        maxApprox = 0
+
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        thresh = cv2.adaptiveThreshold(gray, 255,1,1,11,2)
+        contours, hier = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            for cnt in contours:
+                cntArea = cv2.contourArea(cnt)
+                peri = cv2.arcLength(cnt,True)
+                approx = cv2.approxPolyDP(cnt, 0.02*peri, True)
+                if len(approx) == 4 and cntArea > maxContourArea:
+                    maxContourArea = cntArea
+                    maxCnt = cnt
+                    maxApprox = approx
+
+            if maxContourArea != MINIMUM_BORDER_SIZE:
+                self.approx = self.rectify(maxApprox) # if no frame found -> stay with last borders
+
+    def frameToBorder(self, frame):
+        """transform frame to fit to borders"""
+        retval = cv2.getPerspectiveTransform(self.approx, self.size)
+        warp = cv2.warpPerspective(frame,retval,(GAME_WIDTH, GAME_HIGHT))
+        return warp
+
+    def findRobot(self, frame, player):
+        """finds all playing robots"""
+        erodeKernel = numpy.ones((5,5),numpy.uint8)
+        dilateKernel = numpy.ones((6,6),numpy.uint8)
+        maxArea = 0
+        maxCnt = []
+        maxPosx = 0
+        maxPosy = 0
+        img = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        binaryColor = cv2.inRange(img, player.lowerColor, player.upperColor)
+        erosion = cv2.erode(binaryColor, erodeKernel, iterations = 1) #noise removal
+        dilation = cv2.dilate(erosion, dilateKernel, iterations = 2) #opposite noise removal
+        croppedBinary, maxBinaryX, maxBinaryY  = self.croper(player, dilation)
+        contours, hier = cv2.findContours(croppedBinary, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+        if contours:
+            for cnt in contours:
+                approx = cv2.approxPolyDP(cnt,0.1*cv2.arcLength(cnt,True),True)
+                if len(approx) == 3:
+                    moments = cv2.moments(cnt)
+                    area = moments['m00']
+                    if area > maxArea:
+                        maxArea = area
+                        maxCnt = cnt
+                        maxPosx = int(moments['m10'] / area) + maxBinaryX
+                        maxPosy = int(moments['m01'] / area) + maxBinaryY
+
+            if maxArea > 0:
+                player.position = Vec2d(maxPosx, maxPosy)
+                player.notFoundCounter = 0
+                player.updatePlayerRadius()
+            else:
+                player.notFound()
+        else:
+            player.notFound()
+        return player.position
+
+    @staticmethod
+    def rectify(h):
+        """this function put vertices of square of the board, in clockwise order"""
+        h = h.reshape((4,2))
+        hnew = numpy.zeros((4,2),dtype = numpy.float32)
+
+        add = h.sum(1)
+        hnew[0] = h[numpy.argmin(add)]
+        hnew[2] = h[numpy.argmax(add)]
+
+        diff = numpy.diff(h,axis = 1)
+        hnew[1] = h[numpy.argmin(diff)]
+        hnew[3] = h[numpy.argmax(diff)]
+
+        return hnew
+
+    @staticmethod
+    def croper(player, frame):
+        """crop frame to radius around last player position """
+        if player.position.x - player.radius <= 0 and player.position.x + player.radius <= GAME_WIDTH:
+            topX = 0
+            bottomX = player.position.x + player.radius
+        elif player.position.x - player.radius >= 0 and player.position.x + player.radius <= GAME_WIDTH:
+            topX = player.position.x - player.radius
+            bottomX = player.position.x + player.radius
+        elif player.position.x - player.radius >= 0 and player.position.x + player.radius >= GAME_WIDTH:
+            topX = player.position.x - player.radius
+            bottomX = GAME_WIDTH
+        else:
+            print "WTF?! player.position.y: %d player.position.x: %d" % (player.position.y, player.position.x)
+
+        if player.position.y - player.radius <= 0 and player.position.y + player.radius <= GAME_HIGHT:
+            topY = 0
+            bottomY = player.position.y + player.radius
+        elif player.position.y - player.radius >= 0 and player.position.y + player.radius <= GAME_HIGHT:
+            topY = player.position.y - player.radius
+            bottomY = player.position.y + player.radius
+        elif player.position.y - player.radius >= 0 and player.position.y + player.radius >= GAME_HIGHT:
+            topY = player.position.y - player.radius
+            bottomY = GAME_HIGHT
+        else:
+            print "WTF?! player.position.y: %d player.position.x: %d" % (player.position.y, player.position.x)
+
+        cropedFrame = numpy.array(frame[topY:bottomY, topX:bottomX])
+        return cropedFrame, topX, topY
 
 class Player:
     def __init__(self, game_surface, color, controller):
@@ -321,6 +487,8 @@ class Player:
         self.movement_speed = 0
         self.trail = Trail(self.game_surface, color)
         self.controller = controller
+        self.radius = SEARCH_RADIUS
+        self.notFoundCounter = 0
 
         self.time_to_next_hole = 0
         self.hole_length_remaining = 0
@@ -333,6 +501,8 @@ class Player:
             self.robot_controller = RobotController(arduino)
 
     def reset(self):
+        self.notFoundCounter = 0
+        self.radius = SEARCH_RADIUS
         self.alive = True
         self.trail.reset()
         self.creating_hole = False
@@ -409,42 +579,10 @@ class Player:
     def draw(self):
         self.game_surface.blit(self.surface, self.surface_position)
 
-    def getRobotPositionFromCamera(self):
-        """Get Position from camera via opencv. Throw RobotNotFoundError if robot not found."""
-        if DEBUG:
-            return self.position
-
-        elif DEBUG_WEBCAM:
-            maxArea = 0
-            maxCnt = []
-            maxPosX = 0
-            maxPosY = 0
-            ret, frame = webcam.webCamCapture.read() # ret value true if capture from webCam went good, frame is the picture from the webCam
-            if ret == True:
-                newFrame = Webcam.fixCap(frame)
-                if DEUBG_WEBCAM_WITH_WINDOW:
-                    cv2.imshow("WebCam", newFrame)
-                img = cv2.GaussianBlur(newFrame, (5,5), 0)
-                img = cv2.cvtColor(newFrame, cv2.COLOR_BGR2HSV)
-                binaryColor = cv2.inRange(img, self.lowerColor, self.upperColor) # #creating a threshold image that contains pixels in between color Upper and Lower
-                contours, hier = cv2.findContours(binaryColor, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
-                if contours:
-                    for cnt in contours:
-                        moments = cv2.moments(cnt)
-                        area = moments['m00']
-                        approx = cv2.approxPolyDP(cnt,0.05*cv2.arcLength(cnt,True),True)
-                        if len(approx) == 3:
-                            if area > maxArea:
-                                maxArea = area
-                                maxCnt = cnt
-                                maxPosX = int(moments['m10'] / area)
-                                maxPosY = int(moments['m01'] / area)
-                    self.position = (maxPosX, maxPosY)
-                if maxArea == 0:
-                    raise RobotNotFoundError()
-
     def updatePosition(self, add_to_trail=False):
-        self.position = Vec2d(self.getRobotPositionFromCamera())
+        if DEBUG_WEBCAM:
+            self.position = Vec2d(webcam.findPlayer(self))
+
         self.surface_position = (int(self.position.x - PLAYER_RADIUS), int(self.position.y - PLAYER_RADIUS))
         self.surface.fill(CLEAR_COLOR)
         pygame.draw.circle(self.surface, GAME_BACKGROUNG_COLOR, (PLAYER_RADIUS, PLAYER_RADIUS), PLAYER_RADIUS)
@@ -479,6 +617,18 @@ class Player:
     def electrify(self):
         """Shock player with electric pulse"""
         pass
+
+    def notFound(self):
+        """if robot not found ROBOT_NOT_FOUND_LIMIT times raise robotNotFoundException"""
+        if self.notFoundCounter == ROBOT_NOT_FOUND_LIMIT:
+            raise robotNotFoundException()
+        else:
+            self.notFoundCounter += 1
+
+    def updatePlayerRadius(self):
+        """change player radius after initialisation SHOULD BE CHANGED!! NOT GOOD!"""
+        if self.radius == SEARCH_RADIUS:
+            self.radius = 100
 
 class MusicMixer:
     def __init__(self):
@@ -760,7 +910,6 @@ class Game:
                 # Check end conditions
                 if len(self.players_alive) <= 1:
                     if not (DEBUG_SINGLE_PLAYER and len(self.players_alive) == 1):
-                        print 'dead'
                         break
 
     def get_randomized_next_bonus_time(self):
