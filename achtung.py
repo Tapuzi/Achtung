@@ -98,8 +98,10 @@ GAME_HIGHT = 500
 GAME_BORDER_WIDTH = 10
 GAME_BORDER_COLOR = (255, 255, 255)
 
+GUI_MARGIN_SIZE = 150
+
 SCREEN_WIDTH = GAME_WIDTH + GAME_BORDER_WIDTH * 2
-SCREEN_HIGHT = GAME_HIGHT + GAME_BORDER_WIDTH * 2
+SCREEN_HIGHT = GAME_HIGHT + GAME_BORDER_WIDTH * 2 + GUI_MARGIN_SIZE
 
 SEARCH_RADIUS = (GAME_WIDTH / 2) - 1
 
@@ -963,12 +965,12 @@ class Game:
         self.surface.fill(GAME_BACKGROUNG_COLOR)
 
     def drawBorders(self):
-        border_rectangle = pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HIGHT)
+        border_rectangle = pygame.Rect(0, GUI_MARGIN_SIZE, SCREEN_WIDTH, SCREEN_HIGHT)
         #Note: A filled rectangle is drawn, but it's ok because the game board is drawn after it
         pygame.draw.rect(self.screen_surface, GAME_BORDER_COLOR, border_rectangle)
 
     def updateDisplay(self):
-        self.screen_surface.blit(self.surface, (GAME_BORDER_WIDTH, GAME_BORDER_WIDTH))
+        self.screen_surface.blit(self.surface, (GAME_BORDER_WIDTH, GAME_BORDER_WIDTH + GUI_MARGIN_SIZE))
         pygame.display.flip()
 
     def playerCollidesWithBonus(self, player, bonus):
