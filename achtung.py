@@ -197,7 +197,7 @@ class Bonus(object):
         pass
 
     def draw(self):
-        self.game.surface.blit(self.surface, self.position)
+        self.game.game_surface.blit(self.surface, self.position)
 
     def get_rect(self):
         return self.surface.get_rect(topleft=self.position)
