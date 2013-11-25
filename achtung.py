@@ -896,25 +896,39 @@ class Game:
                         #TODO: start/stop robots
 
             if not paused:
-                if USE_WEBCAM:
-                    webcam.takePicture()
-                for player in self.players_alive[:]:
-                    try:
-                        player.tick(tick_duration)
-                        player.updatePosition(add_to_trail=True)
-                        player.updateDirection()
-                    except RobotNotFoundError:
-                        self.kill_player(player)
-
                 next_bonus_time -= tick_duration
                 if next_bonus_time <= 0:
                     bonus = self.get_randomized_bonus()
                     bonuses.append(bonus)
                     next_bonus_time = self.get_randomized_next_bonus_time()
 
-                for player in self.players_alive:
+                for bonus in activated_bonuses:
+                        bonus.duration -= tick_duration
+                        if bonus.duration <= 0:
+                            bonus.deactivate()
+                            activated_bonuses.remove(bonus)
+
+                if USE_WEBCAM:
+                    webcam.takePicture()
+
+                for player in self.players_alive[:]:
+                    player.updateDirection()
                     if not DEBUG_WITHOUT_ROBOT:
                         player.robot_controller.updateRobotMovement()
+                    player.tick(tick_duration)
+                    try:
+                        player.updatePosition(add_to_trail=True)
+                    except RobotNotFoundError:
+                        self.kill_player(player)
+
+                    if self.playerCrashesIntoAnything(player):
+                        self.kill_player(player)
+
+                    for bonus in bonuses:
+                        if self.playerCollidesWithBonus(player, bonus):
+                            bonus.activate(player)
+                            bonuses.remove(bonus)
+                            activated_bonuses.append(bonus)
 
                 self.clearSurface()
                 for player in self.players:
@@ -925,23 +939,6 @@ class Game:
                 self.drawBorders()
                 self.drawGui()
                 self.updateDisplay()
-
-                for player in self.players_alive[:]:
-                    for bonus in activated_bonuses:
-                        bonus.duration -= tick_duration
-                        if bonus.duration <= 0:
-                            bonus.deactivate()
-                            activated_bonuses.remove(bonus)
-
-                    for bonus in bonuses:
-                        if self.playerCollidesWithBonus(player, bonus):
-                            bonus.activate(player)
-                            bonuses.remove(bonus)
-                            activated_bonuses.append(bonus)
-
-
-                    if self.playerCrashesIntoAnything(player):
-                        self.kill_player(player)
 
                 # Check end conditions
                 if len(self.players_alive) <= 1:
