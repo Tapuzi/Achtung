@@ -151,7 +151,6 @@ CLEAR_COLOR = (0, 0, 0, 0)
 GAME_BACKGROUNG_COLOR = (0, 0, 0)
 
 TITLE_COLOR = (255, 255, 255)
-PLAYER_SCORE_COLOR = (255, 255, 255)
 
 BONUS_SIZE = 35
 BONUS_DIMENSIONS = (BONUS_SIZE, BONUS_SIZE)
@@ -989,7 +988,7 @@ class Game:
         font = pygame.font.Font(FONT_FILE_NAMES_TO_FILES['menu_font.ttf'], 32)
         for i, player in enumerate(self.players):
             text = '%s: %d' % (player.color.name, player.score)
-            text_surface = font.render(text, True, PLAYER_SCORE_COLOR)
+            text_surface = font.render(text, True, player.color.value)
             center_offset = SCREEN_WIDTH * (i + 1) / (len(self.players) + 1)
             rect = text_surface.get_rect(center=(center_offset, GUI_MARGIN - SCORES_MARGIN_BOTTOM))
             self.screen_surface.blit(text_surface, rect)
