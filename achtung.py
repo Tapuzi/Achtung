@@ -186,6 +186,7 @@ class Bonus(object):
     surface = None
     DURATION_MIN = None
     DURATION_MAX = None
+    activate_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['heal.ogg'])
 
     def __init__(self, game, position):
         self.game = game
@@ -194,6 +195,7 @@ class Bonus(object):
 
     def activate(self, picker):
         self.picker = picker
+        self.activate_sound.play()
 
     def deactivate(self):
         pass
@@ -711,6 +713,7 @@ class Game:
         self.start_beeps_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['start_beeps.wav'])
         self.explosion_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['80938__tony-b-kksm__soft-explosion.wav'])
         self.winner_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['winner.wav'])
+        self.menu_select_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['menuselect.wav'])
 
         controllers = getDefaultControllers(PLAYERS_COUNT) # Note: changed this. removed self.controllers, which was unused. If it shall be used, a good version of it will be a "getControllers" method which dinamically updates the controllers.
         self.players = [Player(self.game_surface, color, controller) for color, controller in zip(COLORS, controllers)]
@@ -773,6 +776,7 @@ class Game:
         while True:
             try:
                 currentFunction = currentFunction()
+                self.menu_select_sound.play()
                 if currentFunction == self.play_game:
                     currentFunction = self.main_menu.showMenu
                     self.play_game()
