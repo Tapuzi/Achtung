@@ -103,6 +103,7 @@ GAME_BORDER_COLOR = (255, 255, 255)
 
 GUI_MARGIN = 150
 TITLE_MARGIN = 50
+SCORES_MARGIN_BOTTOM = 15
 
 SCREEN_WIDTH = GAME_WIDTH + GAME_BORDER_WIDTH * 2
 SCREEN_HIGHT = GAME_HIGHT + GAME_BORDER_WIDTH * 2 + GUI_MARGIN
@@ -150,6 +151,7 @@ CLEAR_COLOR = (0, 0, 0, 0)
 GAME_BACKGROUNG_COLOR = (0, 0, 0)
 
 TITLE_COLOR = (255, 255, 255)
+PLAYER_SCORE_COLOR = (255, 255, 255)
 
 BONUS_SIZE = 35
 BONUS_DIMENSIONS = (BONUS_SIZE, BONUS_SIZE)
@@ -789,10 +791,6 @@ class Game:
         for player in self.players:
             player.score = 0
 
-        self.clearSurface()
-        self.drawTitle()
-        self.updateDisplay()
-
         while True:
             self.play_round()
 
@@ -835,11 +833,6 @@ class Game:
         finally:
             self.music_mixer.setVolume(self.music_mixer.background_music_volume_low)
 
-        #TODO: replace with HUD updates
-        for player in self.players:
-            print ''
-            print '%s: %d' % (player.color.name, player.score)
-
     def pre_round_wait(self):
         while True:
             events = self.handle_events()
@@ -851,6 +844,7 @@ class Game:
                 player.updatePosition()
                 player.draw()
             self.drawBorders()
+            self.drawGui()
             self.updateDisplay()
 
             for event in events:
@@ -923,6 +917,7 @@ class Game:
                 for bonus in bonuses:
                     bonus.draw()
                 self.drawBorders()
+                self.drawGui()
                 self.updateDisplay()
 
                 for player in self.players_alive[:]:
@@ -972,6 +967,7 @@ class Game:
         return bonus
 
     def clearSurface(self):
+        self.screen_surface.fill(GAME_BACKGROUNG_COLOR)
         self.game_surface.fill(GAME_BACKGROUNG_COLOR)
 
     def drawBorders(self):
@@ -979,11 +975,24 @@ class Game:
         #Note: A filled rectangle is drawn, but it's ok because the game board is drawn after it
         pygame.draw.rect(self.screen_surface, GAME_BORDER_COLOR, border_rectangle)
 
+    def drawGui(self):
+        self.drawTitle()
+        self.drawScores()
+
     def drawTitle(self):
-        font  = pygame.font.Font(FONT_FILE_NAMES_TO_FILES['m41.ttf'], 40)
+        font = pygame.font.Font(FONT_FILE_NAMES_TO_FILES['m41.ttf'], 45)
         text_surface = font.render('Achtung!', True, TITLE_COLOR)
         rect = text_surface.get_rect(center=(SCREEN_WIDTH / 2, TITLE_MARGIN))
         self.screen_surface.blit(text_surface, rect)
+
+    def drawScores(self):
+        font = pygame.font.Font(FONT_FILE_NAMES_TO_FILES['menu_font.ttf'], 32)
+        for i, player in enumerate(self.players):
+            text = '%s: %d' % (player.color.name, player.score)
+            text_surface = font.render(text, True, PLAYER_SCORE_COLOR)
+            center_offset = SCREEN_WIDTH * (i + 1) / (len(self.players) + 1)
+            rect = text_surface.get_rect(center=(center_offset, GUI_MARGIN - SCORES_MARGIN_BOTTOM))
+            self.screen_surface.blit(text_surface, rect)
 
     def updateDisplay(self):
         self.screen_surface.blit(self.game_surface, (GAME_BORDER_WIDTH, GAME_BORDER_WIDTH + GUI_MARGIN))
