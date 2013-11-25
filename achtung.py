@@ -711,6 +711,7 @@ class Game:
         self.begin_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['begin.wav'])
         self.start_beeps_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['start_beeps.wav'])
         self.explosion_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['80938__tony-b-kksm__soft-explosion.wav'])
+        self.winner_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['winner.wav'])
 
         controllers = getDefaultControllers(PLAYERS_COUNT) # Note: changed this. removed self.controllers, which was unused. If it shall be used, a good version of it will be a "getControllers" method which dinamically updates the controllers.
         self.players = [Player(self.game_surface, color, controller) for color, controller in zip(COLORS, controllers)]
@@ -977,6 +978,8 @@ class Game:
         pygame.draw.rect(self.game_surface, WINNING_ANNOUNCEMENT_BOX_BORDER_COLOR, box_rect, WINNING_ANNOUNCEMENT_BOX_BORDER_WIDTH)
         self.game_surface.blit(text_surface, text_rect)
         self.updateDisplay()
+
+        self.winner_sound.play()
 
         while True:
             events = self.handle_events()
