@@ -24,7 +24,13 @@ if USE_WEBCAM:
 
 ##
 ## TODO:
-##     - Add more bonuses (speed up/down, control reverse, players swap, electrify etc...)
+##     - Add more bonuses:
+##         - Reverse controls (others / self)
+##         - Clear trails
+##         - swap all players positions / robots
+##         - Speed up / down others
+##         - Invurnerability from trail collision
+##         - No trail generation
 ##     - In pre_round stage, enable robot control for manual robot positioning
 ##
 ## Improvements:
@@ -263,9 +269,25 @@ class SpeedDownSelf(ModifySelfSpeed):
 ##        for player in others:
 ##            player.decreaseSpeed()
 
+class ReverseDirectionsAll(Bonus):
+    surface = load_bonus_image('ReverseDirections.png')
+    DURATION_MIN = 1 * 1000
+    DURATION_MAX = 3 * 1000
+
+    def activate(self, picker):
+        super(ReverseDirectionsAll, self).activate(picker)
+
+        self.players_affected = self.game.players_alive
+        for player in self.players_affected:
+            player.should_reverse_direction = True
+
+    def deactivate(self):
+        for player in self.players_affected:
+            player.should_reverse_direction = False
+
 # TODO: make Game choose random bonuses from these
 #BONUSES = [SpeedUpSelf, SpeedUpOthers, SpeedDownSelf, SpeedDownOthers]
-BONUSES = [SpeedUpSelf, SpeedDownSelf]
+BONUSES = [SpeedUpSelf, SpeedDownSelf, ReverseDirectionsAll]
 
 class Trail:
     def __init__(self, game_surface, color):
@@ -514,6 +536,7 @@ class Player:
         self.controller = controller
         self.radius = SEARCH_RADIUS
         self.notFoundCounter = 0
+        self.should_reverse_direction = False
 
         self.time_to_next_hole = 0
         self.hole_length_remaining = 0
@@ -535,6 +558,7 @@ class Player:
         self.hole_length_remaining = 0
         self.stop()
         self.resetTimeToNextHole()
+        self.should_reverse_direction = False
 
     def go(self):
         self.setSpeed(DEFAULT_ROBOT_SPEED, DEFAULT_MOVEMENT_SPEED)
@@ -635,6 +659,15 @@ class Player:
         self.direction = self.controller.getDirection()
         if not DEBUG_WITHOUT_ROBOT:
             self.robot_controller.direction = self.direction
+
+        if self.should_reverse_direction:
+            self.reverse_direction()
+
+    def reverse_direction(self):
+        if self.direction == LEFT:
+            self.direction = RIGHT
+        elif self.direction == RIGHT:
+            self.direction = LEFT
 
     def die(self):
         self.alive = False
