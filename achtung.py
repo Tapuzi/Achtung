@@ -32,6 +32,7 @@ if USE_WEBCAM:
 ##         - Invurnerability from trail collision
 ##         - No trail generation
 ##     - In pre_round stage, enable robot control for manual robot positioning
+##     - Improve performance with bigger resolution settings (e.g. 900x900)
 ##
 ## Improvements:
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
