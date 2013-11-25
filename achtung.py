@@ -24,10 +24,8 @@ if USE_WEBCAM:
 
 ##
 ## TODO:
-##     - Add a margin where game info is displayed
-##     - Show game info (Name, scores, round winner etc...)
-##     - Add more sounds (player death, draw, win, ... maybe use DOTA/MortalKombat's announcer?)
 ##     - Add more bonuses (speed up/down, control reverse, players swap, electrify etc...)
+##     - In pre_round stage, enable robot control for manual robot positioning
 ##
 ## Improvements:
 ##     - Support high speeds by drawing "circle lines" from the last point to the current point (?)
