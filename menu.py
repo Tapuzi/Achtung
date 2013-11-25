@@ -25,7 +25,7 @@ class Menu:
     list = []
     pola = []
     size_font = 32
-    font_path = r'Images\menu_font.ttf'
+    font_path = r'Fonts\menu_font.ttf'
     font = pygame.font.Font
     dest_surface = pygame.Surface
     number_pol = 0

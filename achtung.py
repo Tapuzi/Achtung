@@ -60,6 +60,7 @@ ROOT_DIR = path.abspath(path.dirname(__file__))
 SOUND_DIR = path.join(ROOT_DIR, 'sound')
 MUSIC_DIR = path.join(ROOT_DIR, 'music')
 IMAGES_DIR = path.join(ROOT_DIR, 'Images')
+FONTS_DIR = path.join(ROOT_DIR, 'Fonts')
 
 def list_files_full_path(directory):
     entries = [path.join(directory, entry) for entry in os.listdir(directory)]
@@ -69,10 +70,12 @@ def list_files_full_path(directory):
 SOUND_FILES = list_files_full_path(SOUND_DIR)
 MUSIC_FILES = list_files_full_path(MUSIC_DIR)
 IMAGE_FILES = list_files_full_path(IMAGES_DIR)
+FONT_FILES = list_files_full_path(FONTS_DIR)
 
 SOUND_FILE_NAMES_TO_FILES = {path.basename(file): file for file in SOUND_FILES}
 MUSIC_FILE_NAMES_TO_FILES = {path.basename(file): file for file in MUSIC_FILES}
 IMAGE_FILE_NAMES_TO_FILES = {path.basename(file): file for file in IMAGE_FILES}
+FONT_FILE_NAMES_TO_FILES = {path.basename(file): file for file in FONT_FILES}
 
 Color = namedtuple('Color', ['name', 'value', 'value_range'])
 
@@ -98,10 +101,11 @@ GAME_HIGHT = 500
 GAME_BORDER_WIDTH = 10
 GAME_BORDER_COLOR = (255, 255, 255)
 
-GUI_MARGIN_SIZE = 150
+GUI_MARGIN = 150
+TITLE_MARGIN = 50
 
 SCREEN_WIDTH = GAME_WIDTH + GAME_BORDER_WIDTH * 2
-SCREEN_HIGHT = GAME_HIGHT + GAME_BORDER_WIDTH * 2 + GUI_MARGIN_SIZE
+SCREEN_HIGHT = GAME_HIGHT + GAME_BORDER_WIDTH * 2 + GUI_MARGIN
 
 SEARCH_RADIUS = (GAME_WIDTH / 2) - 1
 
@@ -144,6 +148,8 @@ NON_COLLIDING_TRAIL_MAX_LENGTH = PLAYER_DIAMETER * 2
 CLEAR_COLOR = (0, 0, 0, 0)
 
 GAME_BACKGROUNG_COLOR = (0, 0, 0)
+
+TITLE_COLOR = (255, 255, 255)
 
 BONUS_SIZE = 35
 BONUS_DIMENSIONS = (BONUS_SIZE, BONUS_SIZE)
@@ -693,7 +699,7 @@ class Game:
     def __init__(self, game_screen, music_mixer):
         self.screen_surface =  game_screen.surface
         self.music_mixer = music_mixer
-        self.surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT))
+        self.game_surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT))
 
         self.music_file = random.choice(MUSIC_FILES)
 
@@ -704,7 +710,7 @@ class Game:
         self.explosion_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['80938__tony-b-kksm__soft-explosion.wav'])
 
         controllers = getDefaultControllers(PLAYERS_COUNT) # Note: changed this. removed self.controllers, which was unused. If it shall be used, a good version of it will be a "getControllers" method which dinamically updates the controllers.
-        self.players = [Player(self.surface, color, controller) for color, controller in zip(COLORS, controllers)]
+        self.players = [Player(self.game_surface, color, controller) for color, controller in zip(COLORS, controllers)]
         self.players_alive = self.players[:]
 
         # Set menus
@@ -782,6 +788,10 @@ class Game:
 
         for player in self.players:
             player.score = 0
+
+        self.clearSurface()
+        self.drawTitle()
+        self.updateDisplay()
 
         while True:
             self.play_round()
@@ -962,15 +972,21 @@ class Game:
         return bonus
 
     def clearSurface(self):
-        self.surface.fill(GAME_BACKGROUNG_COLOR)
+        self.game_surface.fill(GAME_BACKGROUNG_COLOR)
 
     def drawBorders(self):
-        border_rectangle = pygame.Rect(0, GUI_MARGIN_SIZE, SCREEN_WIDTH, SCREEN_HIGHT)
+        border_rectangle = pygame.Rect(0, GUI_MARGIN, SCREEN_WIDTH, SCREEN_HIGHT)
         #Note: A filled rectangle is drawn, but it's ok because the game board is drawn after it
         pygame.draw.rect(self.screen_surface, GAME_BORDER_COLOR, border_rectangle)
 
+    def drawTitle(self):
+        font  = pygame.font.Font(FONT_FILE_NAMES_TO_FILES['m41.ttf'], 40)
+        text_surface = font.render('Achtung!', True, TITLE_COLOR)
+        rect = text_surface.get_rect(center=(SCREEN_WIDTH / 2, TITLE_MARGIN))
+        self.screen_surface.blit(text_surface, rect)
+
     def updateDisplay(self):
-        self.screen_surface.blit(self.surface, (GAME_BORDER_WIDTH, GAME_BORDER_WIDTH + GUI_MARGIN_SIZE))
+        self.screen_surface.blit(self.game_surface, (GAME_BORDER_WIDTH, GAME_BORDER_WIDTH + GUI_MARGIN))
         pygame.display.flip()
 
     def playerCollidesWithBonus(self, player, bonus):
