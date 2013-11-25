@@ -149,6 +149,7 @@ NON_COLLIDING_TRAIL_MAX_LENGTH = PLAYER_DIAMETER * 2
 CLEAR_COLOR = (0, 0, 0, 0)
 
 GAME_BACKGROUNG_COLOR = (0, 0, 0)
+GUI_BACKGROUND_COLOR = (51, 51, 51)
 TITLE_COLOR = (255, 91, 49)
 WINNING_ANNOUNCEMENT_BOX_COLOR = (50, 50, 50, 200)
 WINNING_ANNOUNCEMENT_BOX_BORDER_COLOR = (150, 150, 150)
@@ -1012,6 +1013,8 @@ class Game:
         pygame.draw.rect(self.screen_surface, GAME_BORDER_COLOR, border_rectangle)
 
     def drawGui(self):
+        gui_rect = (0, 0, SCREEN_WIDTH, GUI_MARGIN)
+        self.screen_surface.fill(GUI_BACKGROUND_COLOR, gui_rect)
         self.drawTitle()
         self.drawScores()
 
