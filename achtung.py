@@ -747,11 +747,12 @@ class Game:
             player._set_position_and_direction_vector(Vec2d(x, y), direction_vector)
 
     def kill_player(self, player):
-        player.die()
-        self.explosion_sound.play()
-        self.players_alive.remove(player)
-        for player in self.players_alive:
-            player.score += 1
+        if player.alive:
+            player.die()
+            self.explosion_sound.play()
+            self.players_alive.remove(player)
+            for player in self.players_alive:
+                player.score += 1
 
     def handle_events(self): # Note: Removed to work nicely with the new menu
         events = list(pygame.event.get())
@@ -938,20 +939,9 @@ class Game:
                             bonuses.remove(bonus)
                             activated_bonuses.append(bonus)
 
-                    if self.playerCollidesWithWalls(player):
+
+                    if self.playerCrashesIntoAnything(player):
                         self.kill_player(player)
-
-                    for other_player in (p for p in self.players if p != player):
-                        if self.playerCollidesWithOtherPlayer(player, other_player):
-                            self.kill_player(player)
-
-                    if self.playerCollidesWithItself(player):
-                        self.kill_player(player)
-
-                    # Check other players' trails
-                    for trail in (p.trail for p in self.players if p != player):
-                        if self.playerCollidesWithTrail(player, trail):
-                            self.kill_player(player)
 
                 # Check end conditions
                 if len(self.players_alive) <= 1:
@@ -1046,6 +1036,22 @@ class Game:
             return False
         else:
             return True
+
+    def playerCrashesIntoAnything(self, player):
+        if self.playerCollidesWithWalls(player):
+            return True
+
+        for other_player in (p for p in self.players if p != player):
+            if self.playerCollidesWithOtherPlayer(player, other_player):
+                return True
+
+        if self.playerCollidesWithItself(player):
+            return True
+
+        # Check other players' trails
+        for trail in (p.trail for p in self.players if p != player):
+            if self.playerCollidesWithTrail(player, trail):
+                return True
 
     def playerCollidesWithWalls(self, player):
         x, y = player.position
