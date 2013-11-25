@@ -807,13 +807,17 @@ class Game:
                         # play another round, until there is a final winner
                         pass
                 if winner is not None:
-                    print 'The winner is %s!' % winner.color.name
                     break
 
             if DEBUG_SINGLE_PLAYER:
                 round_count -= 1
                 if round_count == 0:
+                    winner = self.players[0]
                     break
+
+            self.post_round()
+
+        self.display_winner(winner)
 
     def play_round(self):
         for player in self.players:
@@ -848,7 +852,7 @@ class Game:
 
             for event in events:
                if event.type == pygame.KEYDOWN and event.key in [pygame.K_SPACE, pygame.K_RETURN]:
-                    return True
+                    return
 
             self.tick()
 
@@ -951,6 +955,19 @@ class Game:
                 if len(self.players_alive) <= 1:
                     if not (DEBUG_SINGLE_PLAYER and len(self.players_alive) == 1):
                         break
+
+    def post_round(self):
+        while True:
+            events = self.handle_events()
+            for event in events:
+               if event.type == pygame.KEYDOWN and event.key in [pygame.K_SPACE, pygame.K_RETURN]:
+                    return
+
+            self.tick()
+
+    def display_winner(self, player):
+        #TODO: display on screen
+        print 'The winner is %s!' % player.color.name
 
     def get_randomized_next_bonus_time(self):
         next_bonus_time = random.uniform(TIME_TO_BONUS_MIN, TIME_TO_BONUS_MAX)
