@@ -149,8 +149,10 @@ NON_COLLIDING_TRAIL_MAX_LENGTH = PLAYER_DIAMETER * 2
 CLEAR_COLOR = (0, 0, 0, 0)
 
 GAME_BACKGROUNG_COLOR = (0, 0, 0)
-
 TITLE_COLOR = (255, 255, 255)
+WINNING_ANNOUNCEMENT_BOX_COLOR = (50, 50, 50, 200)
+WINNING_ANNOUNCEMENT_BOX_BORDER_COLOR = (150, 150, 150)
+WINNING_ANNOUNCEMENT_BOX_BORDER_WIDTH = 5
 
 BONUS_SIZE = 35
 BONUS_DIMENSIONS = (BONUS_SIZE, BONUS_SIZE)
@@ -700,7 +702,7 @@ class Game:
     def __init__(self, game_screen, music_mixer):
         self.screen_surface =  game_screen.surface
         self.music_mixer = music_mixer
-        self.game_surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT))
+        self.game_surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
 
         self.music_file = random.choice(MUSIC_FILES)
 
@@ -817,7 +819,7 @@ class Game:
 
             self.post_round()
 
-        self.display_winner(winner)
+        self.announce_winner(winner)
 
     def play_round(self):
         for player in self.players:
@@ -965,9 +967,24 @@ class Game:
 
             self.tick()
 
-    def display_winner(self, player):
-        #TODO: display on screen
-        print 'The winner is %s!' % player.color.name
+    def announce_winner(self, player):
+        font = pygame.font.Font(FONT_FILE_NAMES_TO_FILES['menu_font.ttf'], 60)
+        text = '%s Wins!' % player.color.name
+        text_surface = font.render(text, True, player.color.value)
+        text_rect = text_surface.get_rect(center=(GAME_WIDTH / 2, (GAME_HIGHT / 2)))
+        box_rect = text_rect.inflate((100, 100))
+        self.game_surface.fill(WINNING_ANNOUNCEMENT_BOX_COLOR, rect=box_rect)
+        pygame.draw.rect(self.game_surface, WINNING_ANNOUNCEMENT_BOX_BORDER_COLOR, box_rect, WINNING_ANNOUNCEMENT_BOX_BORDER_WIDTH)
+        self.game_surface.blit(text_surface, text_rect)
+        self.updateDisplay()
+
+        while True:
+            events = self.handle_events()
+            for event in events:
+               if event.type == pygame.KEYDOWN and event.key in [pygame.K_SPACE, pygame.K_RETURN]:
+                    return
+
+            self.tick()
 
     def get_randomized_next_bonus_time(self):
         next_bonus_time = random.uniform(TIME_TO_BONUS_MIN, TIME_TO_BONUS_MAX)
