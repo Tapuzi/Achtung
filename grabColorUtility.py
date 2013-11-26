@@ -45,7 +45,7 @@ def main():
     if DEBUG_PRINT:
         lastColors = ()
     time.sleep(5)
-    webcam = webCam(2)
+    webcam = webCam(0)
     webcam.initializeWindows()
     while True:
         ret, frame = webcam.capture.read()

@@ -85,11 +85,11 @@ FONT_FILE_NAMES_TO_FILES = {path.basename(file): file for file in FONT_FILES}
 Color = namedtuple('Color', ['name', 'value', 'value_range'])
 
 COLORS = [
-    Color('Cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
-    Color('Red', (255, 0, 0), (numpy.array([121, 107, 107],numpy.uint8), numpy.array([180, 178, 187],numpy.uint8))),
-    Color('Green', (0, 255, 0), (numpy.array([67, 78, 72],numpy.uint8), numpy.array([116, 166, 106],numpy.uint8))),
-    Color('Blue', (0, 0, 255), (numpy.array([110, 135, 109],numpy.uint8), numpy.array([130, 197, 155],numpy.uint8))),
-    Color('Yellow', (255, 255, 0),(numpy.array([25, 99, 159],numpy.uint8), numpy.array([35, 180, 206],numpy.uint8)))]
+    #Color('Cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
+    Color('Red', (255, 0, 0), (numpy.array([127, 83, 108],numpy.uint8), numpy.array([180, 187, 191], numpy.uint8))),
+    Color('Green', (0, 255, 0), (numpy.array([67, 108, 77],numpy.uint8), numpy.array([111, 209, 172], numpy.uint8))),
+    Color('Blue', (0, 0, 255), (numpy.array([107, 138, 105],numpy.uint8), numpy.array([141, 218, 197], numpy.uint8)))]
+    #Color('Yellow', (255, 255, 0),(numpy.array([18, 60, 178],numpy.uint8), numpy.array([81, 143, 215], numpy.uint8)))]
 
 
 IDS = ['1337' for color in COLORS]
@@ -115,12 +115,12 @@ SCREEN_HIGHT = GAME_HIGHT + GAME_BORDER_WIDTH * 2 + GUI_MARGIN
 
 SEARCH_RADIUS = (GAME_WIDTH / 2) - 1
 
-WEBCAM_NUMBER = 2 #default webcam is 0
+WEBCAM_NUMBER = 0 #default webcam is 0
 
 ROBOT_NOT_FOUND_LIMIT = 20
 RECTANGLE_NOT_FOUND_LIMIT = 50
 NUMBER_OF_FRAMES_BETWEEN_BORDERS_SEARCH = 5000
-MINIMUM_BORDER_SIZE = 1000
+MINIMUM_BORDER_SIZE = 5
 
 FPS_LIMIT = 100
 
@@ -143,13 +143,13 @@ DEFAULT_ROBOT_SPEED = 128
 # Debug speeds
 if DEBUG:
     ROTATION_SPEED = 180 # Degrees per second
-    DEFAULT_MOVEMENT_SPEED = 120 # pixels per second
+    DEFAULT_MOVEMENT_SPEED = 120 / 4 # pixels per second
     MAX_MOVEMENT_SPEED = 400
     MIN_MOVEMENT_SPEED = 30
 
 SPEED_MODIFICATION_RATIO = 0.50
 
-NON_COLLIDING_TRAIL_MAX_LENGTH = PLAYER_DIAMETER * 2
+NON_COLLIDING_TRAIL_MAX_LENGTH = PLAYER_RADIUS + 5
 
 CLEAR_COLOR = (0, 0, 0, 0)
 
@@ -381,14 +381,13 @@ class WebCam(object):
         else:
             raise webCamFailure()
 
-
     def dontStartUntilBorderIsFound(self):
         """don't start game until game's frame is found, trying RECTANGLE_NOT_FOUND_LIMIT times"""
         retriesCounter = 0
-        while self.approx == []:
+        while len(self.approx) == 0:
             self.takePicture()
-            self.approx = self.findBorder(self.frame)
-            if self.approx == []:
+            self.approx = self.findBorder()
+            if len(self.approx) == 0:
                 retriesCounter += 1
             if retriesCounter == RECTANGLE_NOT_FOUND_LIMIT:
                 raise gamesBordersNotFound()
@@ -396,10 +395,10 @@ class WebCam(object):
     def findPlayer(self, player):
         """if frames counter is multiple of NUMBER_OF_FRAMES_BETWEEN_RECTANGLE_SEARCH find game's borders. change frame to fit borders. find playing players in fixed frame"""
         if self.framesCounter % self.numberOfFramesBetweenEachCheck == 0:
-            self.findBorder(self.frame)
+            self.findBorder()
             self.framesCounter = 0
 
-        rectFrame = self.frameToBorder(self.frame)
+        rectFrame = self.frameToBorder()
         if DEUBG_WEBCAM_WITH_WINDOW:
             cv2.imshow('Webcam capture', rectFrame)
             cv2.waitKey(1)
@@ -408,13 +407,12 @@ class WebCam(object):
         self.framesCounter += 1
         return position
 
-    def findBorder(self, frame):
+    def findBorder(self):
         """find game's borders"""
         maxContourArea = MINIMUM_BORDER_SIZE #minimum borders size
         maxCnt = 0
         maxApprox = 0
-
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
         thresh = cv2.adaptiveThreshold(gray, 255,1,1,11,2)
         contours, hier = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
         if contours:
@@ -427,13 +425,14 @@ class WebCam(object):
                     maxCnt = cnt
                     maxApprox = approx
 
+
             if maxContourArea != MINIMUM_BORDER_SIZE:
                 return self.rectify(maxApprox) # if no frame found -> stay with last borders
 
-    def frameToBorder(self, frame):
+    def frameToBorder(self):
         """transform frame to fit to borders"""
         retval = cv2.getPerspectiveTransform(self.approx, self.size)
-        warp = cv2.warpPerspective(frame,retval,(GAME_WIDTH, GAME_HIGHT))
+        warp = cv2.warpPerspective(self.frame,retval,(GAME_WIDTH, GAME_HIGHT))
         return warp
 
     def findRobot(self, frame, player):
@@ -949,6 +948,9 @@ class Game:
                 if USE_WEBCAM:
                     webcam.takePicture()
 
+                trail_masks = [pygame.mask.from_surface(player.trail.self_collision_surface) for player in self.players]
+
+
                 for player in self.players_alive[:]:
                     player.updateDirection()
                     if not DEBUG_WITHOUT_ROBOT:
@@ -1076,12 +1078,12 @@ class Game:
         if self.playerCollidesWithWalls(player):
             return True
 
-        for other_player in (p for p in self.players if p != player):
-            if self.playerCollidesWithOtherPlayer(player, other_player):
-                return True
+##        for other_player in (p for p in self.players if p != player):
+##            if self.playerCollidesWithOtherPlayer(player, other_player):
+##                return True
 
-        if self.playerCollidesWithItself(player):
-            return True
+##        if self.playerCollidesWithItself(player):
+##            return True
 
         # Check other players' trails
         for trail in (p.trail for p in self.players if p != player):
