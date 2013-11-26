@@ -737,7 +737,7 @@ class Game:
     def __init__(self, game_screen, music_mixer):
         self.screen_surface =  game_screen.surface
         self.music_mixer = music_mixer
-        self.game_surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT), flags=pygame.SRCALPHA)
+        self.game_surface = pygame.Surface((GAME_WIDTH, GAME_HIGHT))
 
         self.music_file = random.choice(MUSIC_FILES)
 
