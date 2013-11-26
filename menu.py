@@ -10,6 +10,7 @@ README on the bottom of document.
       more abuot license you can find in data/coders-crux/license.txt
 '''
 
+from os import path
 import pygame
 from pygame.locals import *
 
@@ -28,7 +29,7 @@ class Menu:
     list = []
     pola = []
     size_font = 32
-    font_path = r'Fonts\menu_font.ttf'
+    font_path = path.join('Fonts', 'menu_font.ttf')
     font = pygame.font.Font
     dest_surface = pygame.Surface
     number_pol = 0
@@ -39,7 +40,7 @@ class Menu:
     position_embed = (0,0)
     menu_width = 0
     menu_height = 0
-    menu_move_sound = pygame.mixer.Sound('sound\menuchoose.wav')
+    menu_move_sound = pygame.mixer.Sound(path.join('sound', 'menuchoose.wav'))
 
     class Pole:
         tekst = ''
@@ -169,7 +170,7 @@ if __name__ == "__main__":
 
 
 class MenuWrapper():
-    def __init__(self, screen, clock, music_mixer, music_file = r'music\Menu music\MenuMusic - Threshold 8 bit.ogg', fps_limit = None):
+    def __init__(self, screen, clock, music_mixer, music_file = path.join('music', 'Menu music', 'MenuMusic - Threshold 8 bit.ogg'), fps_limit = None):
         self.screen = screen
         self.clock = clock
         self.music_mixer = music_mixer
