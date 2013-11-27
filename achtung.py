@@ -85,11 +85,11 @@ FONT_FILE_NAMES_TO_FILES = {path.basename(file): file for file in FONT_FILES}
 Color = namedtuple('Color', ['name', 'robot_name', 'value', 'value_range'])
 
 COLORS = [
-##    Color('Cyan', 'cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
-##    Color('Red', 'red0', (255, 0, 0), (numpy.array([127, 83, 108],numpy.uint8), numpy.array([180, 187, 191], numpy.uint8))),
-##    Color('Green', 'gren', (0, 255, 0), (numpy.array([67, 108, 77],numpy.uint8), numpy.array([111, 209, 172], numpy.uint8))),
     Color('Blue', 'blue', (0, 0, 255), (numpy.array([87, 93, 74],numpy.uint8), numpy.array([131, 206, 121], numpy.uint8))),
-##    Color('Yellow', 'yllw', (255, 255, 0),(numpy.array([18, 60, 178],numpy.uint8), numpy.array([81, 143, 215], numpy.uint8))),
+    Color('Red', 'red0', (255, 0, 0), (numpy.array([127, 83, 108],numpy.uint8), numpy.array([180, 187, 191], numpy.uint8))),
+    Color('Green', 'gren', (0, 255, 0), (numpy.array([67, 108, 77],numpy.uint8), numpy.array([111, 209, 172], numpy.uint8))),
+    Color('Cyan', 'cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
+    Color('Yellow', 'yllw', (255, 255, 0),(numpy.array([18, 60, 178],numpy.uint8), numpy.array([81, 143, 215], numpy.uint8))),
 ]
 
 
