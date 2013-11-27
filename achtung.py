@@ -930,71 +930,76 @@ class Game:
         for player in self.players:
             player.go()
 
-        while True:
-            tick_duration = self.tick()
-            events = self.handle_events()
-            for event in events:
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
-                        paused = not paused
-                        #TODO: start/stop robots
+        try:
+            while True:
+                tick_duration = self.tick()
+                events = self.handle_events()
+                for event in events:
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_SPACE:
+                            paused = not paused
+                            #TODO: start/stop robots
 
-            if not paused:
-                next_bonus_time -= tick_duration
-                if next_bonus_time <= 0:
-                    bonus = self.get_randomized_bonus()
-                    bonuses.append(bonus)
-                    next_bonus_time = self.get_randomized_next_bonus_time()
+                if not paused:
+                    next_bonus_time -= tick_duration
+                    if next_bonus_time <= 0:
+                        bonus = self.get_randomized_bonus()
+                        bonuses.append(bonus)
+                        next_bonus_time = self.get_randomized_next_bonus_time()
 
-                for bonus in activated_bonuses:
-                        bonus.duration -= tick_duration
-                        if bonus.duration <= 0:
-                            bonus.deactivate()
-                            activated_bonuses.remove(bonus)
+                    for bonus in activated_bonuses:
+                            bonus.duration -= tick_duration
+                            if bonus.duration <= 0:
+                                bonus.deactivate()
+                                activated_bonuses.remove(bonus)
 
-                if USE_WEBCAM:
-                    webcam.takePicture()
+                    if USE_WEBCAM:
+                        webcam.takePicture()
 
-                trail_masks = [pygame.mask.from_surface(player.trail.self_collision_surface) for player in self.players]
-                first_mask = trail_masks[0]
-                for mask in trail_masks[1:]:
-                    first_mask.draw(mask, (0, 0))
-                trails_collision_mask = first_mask
+                    trail_masks = [pygame.mask.from_surface(player.trail.self_collision_surface) for player in self.players]
+                    first_mask = trail_masks[0]
+                    for mask in trail_masks[1:]:
+                        first_mask.draw(mask, (0, 0))
+                    trails_collision_mask = first_mask
 
-                for player in self.players_alive[:]:
-                    player.updateDirection()
-                    if USE_ROBOTS:
-                        player.robot_controller.updateRobotMovement()
-                    player.tick(tick_duration)
-                    try:
-                        player.updatePosition(add_to_trail=True)
-                    except RobotNotFoundError:
-                        print 'round) %s not found' % player.color.robot_name
-                        #self.kill_player(player)
+                    for player in self.players_alive[:]:
+                        player.updateDirection()
+                        if USE_ROBOTS:
+                            player.robot_controller.updateRobotMovement()
+                        player.tick(tick_duration)
+                        try:
+                            player.updatePosition(add_to_trail=True)
+                        except RobotNotFoundError:
+                            print 'round) %s not found' % player.color.robot_name
+                            #self.kill_player(player)
 
-##                    if self.playerCrashesIntoAnything(player, trails_collision_mask):
-##                        self.kill_player(player)
+    ##                    if self.playerCrashesIntoAnything(player, trails_collision_mask):
+    ##                        self.kill_player(player)
 
+                        for bonus in bonuses:
+                            if self.playerCollidesWithBonus(player, bonus):
+                                bonus.activate(player)
+                                bonuses.remove(bonus)
+                                activated_bonuses.append(bonus)
+
+                    self.clearSurface()
+                    for player in self.players:
+                        player.trail.draw()
+                        player.draw()
                     for bonus in bonuses:
-                        if self.playerCollidesWithBonus(player, bonus):
-                            bonus.activate(player)
-                            bonuses.remove(bonus)
-                            activated_bonuses.append(bonus)
+                        bonus.draw()
+                    self.drawBorders()
+                    self.drawGui()
+                    self.updateDisplay()
 
-                self.clearSurface()
-                for player in self.players:
-                    player.trail.draw()
-                    player.draw()
-                for bonus in bonuses:
-                    bonus.draw()
-                self.drawBorders()
-                self.drawGui()
-                self.updateDisplay()
+                    # Check end conditions
+                    if len(self.players_alive) <= 1:
+                        if not (DEBUG_SINGLE_PLAYER and len(self.players_alive) == 1):
+                            break
+        finally:
+            for player in self.players:
+                player.stop()
 
-                # Check end conditions
-                if len(self.players_alive) <= 1:
-                    if not (DEBUG_SINGLE_PLAYER and len(self.players_alive) == 1):
-                        break
 
     def post_round(self):
         while True:
