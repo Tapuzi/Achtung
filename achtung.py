@@ -144,7 +144,7 @@ MIN_ROBOT_SPEED = MIN_WHEEL_SPEED + TURN_WHEEL_SPEED_DIFFERENCE
 DEFAULT_ROBOT_SPEED = 128
 
 # Debug speeds
-if DEBUG:
+if DEBUG_SIMULATE_MOTION:
     ROTATION_SPEED = 180 # Degrees per second
     DEFAULT_MOVEMENT_SPEED = 120 / 4 # pixels per second
     MAX_MOVEMENT_SPEED = 400
@@ -576,7 +576,7 @@ class Player:
         self.robot_speed = robot_speed
         if not DEBUG_WITHOUT_ROBOT:
             self.robot_controller.speed = robot_speed
-        if DEBUG:
+        if DEBUG_SIMULATE_MOTION:
             self.movement_speed = movement_speed
 
     def modifySpeed(self, robot_speed_delta, movement_speed_delta=0):
@@ -588,7 +588,7 @@ class Player:
         if self.robot_speed + robot_speed_delta < MIN_ROBOT_SPEED:
             robot_speed_delta = -(self.robot_speed - MIN_ROBOT_SPEED)
 
-        if DEBUG:
+        if DEBUG_SIMULATE_MOTION:
             if self.movement_speed + movement_speed_delta > MAX_MOVEMENT_SPEED:
                 movement_speed_delta = MAX_MOVEMENT_SPEED - self.movement_speed
             if self.movement_speed + movement_speed_delta < MIN_MOVEMENT_SPEED:
@@ -607,7 +607,7 @@ class Player:
     def tick(self, tick_duration):
         self.tick_duration = tick_duration
 
-        if DEBUG:
+        if DEBUG_SIMULATE_MOTION:
             self._move()
 
         if not self.creating_hole:
@@ -617,7 +617,7 @@ class Player:
                 self.hole_length_remaining = HOLE_LENGTH
 
     def _move(self):
-        assert DEBUG
+        assert DEBUG_SIMULATE_MOTION
         tick_duration_seconds = self.tick_duration / 1000.0
         rotation = ROTATION_SPEED * tick_duration_seconds
         movement = self.movement_speed * tick_duration_seconds
@@ -868,7 +868,7 @@ class Game:
             player.reset()
         self.players_alive = self.players[:]
 
-        if DEBUG:
+        if DEBUG_SIMULATE_MOTION:
             self._randomize_players_positions_and_direction_vectors()
 
         self.pre_round_wait()
