@@ -2,6 +2,7 @@
 PLAYERS_COUNT = 1
 
 USE_MOUSE = False
+USE_WATCH = True
 USE_WEBCAM = False
 USE_ROBOTS = False
 FULLSCREEN = False

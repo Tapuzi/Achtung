@@ -13,7 +13,7 @@ class Controller:
     """Abstract base class for controllers"""
     def getDirection(self):
         raise NotImplementedError()
-        
+
     def getType(self):
         return self.__class__.__name__
 
@@ -39,7 +39,7 @@ class MouseController(Controller):
             raise Exception('wtf')
 
         return direction
-        
+
     def getAdditionalInfo(self):
         return self.additional_info
 
@@ -50,7 +50,7 @@ class GamepadController(Controller):
 
     def getDirection(self):
         pass
-        
+
     def getAdditionalInfo(self):
         return self.additional_info
 
@@ -60,10 +60,10 @@ class TouchpadController(Controller):
     #       by assigning the left side of it to LEFT and right side to RIGHT.
     def __init__(self, additional_info = ''):
        self.additional_info = additional_info
-        
+
     def getDirection(self):
         pass
-        
+
     def getAdditionalInfo(self):
         return self.additional_info
 
@@ -87,7 +87,7 @@ class KeyboardController(Controller):
             direction = STRAIGHT
 
         return direction
-        
+
     def getAdditionalInfo(self):
         return self.additional_info
 
@@ -108,7 +108,7 @@ class XboxController(Controller):
         elif self.x_direction > 0:
             direction = RIGHT
         return direction
-        
+
     def getAdditionalInfo(self):
         return self.additional_info
 
@@ -156,7 +156,7 @@ class WatchController(Controller):
 
     def getDirection(self):
         return self.getOrientation()
-        
+
     def getAdditionalInfo(self):
         return self.additional_info
 
@@ -172,7 +172,7 @@ def getDefaultControllers(amount):
     ]
     controllers = watch_controllers + xbox_controller + mouse_controller + keyboard_controllers
     return controllers[:amount]
-    
+
 def getControllers():
     watch_controllers = getWatchControllers()
     xbox_controller = getXboxControllers()
@@ -192,4 +192,7 @@ def getXboxControllers():
 def getWatchControllers():
     #TODO: Detect connected watches, and return WatchController list
     #      (try using serial.tools.list_ports.comports())
-    return []
+    if USE_WATCH:
+        return [WatchController('COM10','2057')]
+    else:
+        return []
