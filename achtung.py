@@ -82,18 +82,21 @@ MUSIC_FILE_NAMES_TO_FILES = {path.basename(file): file for file in MUSIC_FILES}
 IMAGE_FILE_NAMES_TO_FILES = {path.basename(file): file for file in IMAGE_FILES}
 FONT_FILE_NAMES_TO_FILES = {path.basename(file): file for file in FONT_FILES}
 
-Color = namedtuple('Color', ['name', 'value', 'value_range'])
+Color = namedtuple('Color', ['name', 'robot_name', 'value', 'value_range'])
 
 COLORS = [
-##    Color('Cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
-##    Color('Red', (255, 0, 0), (numpy.array([127, 83, 108],numpy.uint8), numpy.array([180, 187, 191], numpy.uint8))),
-##    Color('Green', (0, 255, 0), (numpy.array([67, 108, 77],numpy.uint8), numpy.array([111, 209, 172], numpy.uint8))),
-    Color('Blue', (0, 0, 255), (numpy.array([87, 93, 74],numpy.uint8), numpy.array([131, 206, 121], numpy.uint8)))]
-    #Color('Yellow', (255, 255, 0),(numpy.array([18, 60, 178],numpy.uint8), numpy.array([81, 143, 215], numpy.uint8)))]
+##    Color('Cyan', 'cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
+##    Color('Red', 'red0', (255, 0, 0), (numpy.array([127, 83, 108],numpy.uint8), numpy.array([180, 187, 191], numpy.uint8))),
+##    Color('Green', 'gren', (0, 255, 0), (numpy.array([67, 108, 77],numpy.uint8), numpy.array([111, 209, 172], numpy.uint8))),
+    Color('Blue', 'blue', (0, 0, 255), (numpy.array([87, 93, 74],numpy.uint8), numpy.array([131, 206, 121], numpy.uint8))),
+##    Color('Yellow', 'yllw', (255, 255, 0),(numpy.array([18, 60, 178],numpy.uint8), numpy.array([81, 143, 215], numpy.uint8))),
+]
 
 
 IDS = ['1337' for color in COLORS]
-COMPORTS = ['COM10']
+#COMPORTS = ['COM10']
+
+XBEE_COMPORT = 'COM6'
 
 TRAIL_WIDTH = 10
 PLAYER_RADIUS = 60
@@ -544,9 +547,9 @@ class Player:
         self.creating_hole = False
         self.resetTimeToNextHole()
         self.score = 0
-        if DEBUG_ROBOT:
-            ser = serial.Serial('COM6', baudrate=38400)
-            arduino = ArduinoController(ser, 'blue')
+        if USE_ROBOTS:
+            ser = serial.Serial(XBEE_COMPORT, baudrate=38400)
+            arduino = ArduinoController(ser, self.color.robot_name)
             self.robot_controller = RobotController(arduino)
 
     def reset(self):
