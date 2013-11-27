@@ -949,7 +949,10 @@ class Game:
                     webcam.takePicture()
 
                 trail_masks = [pygame.mask.from_surface(player.trail.self_collision_surface) for player in self.players]
-
+                first_mask = trail_masks[0]
+                for mask in trail_masks[1:]:
+                    first_mask.draw(mask, (0, 0))
+                trails_collision_mask = first_mask
 
                 for player in self.players_alive[:]:
                     player.updateDirection()
@@ -961,7 +964,7 @@ class Game:
                     except RobotNotFoundError:
                         self.kill_player(player)
 
-                    if self.playerCrashesIntoAnything(player):
+                    if self.playerCrashesIntoAnything(player, trails_collision_mask):
                         self.kill_player(player)
 
                     for bonus in bonuses:
@@ -1074,21 +1077,20 @@ class Game:
         else:
             return True
 
-    def playerCrashesIntoAnything(self, player):
+    def playerCrashesIntoAnything(self, player, trails_mask):
         if self.playerCollidesWithWalls(player):
             return True
 
-##        for other_player in (p for p in self.players if p != player):
-##            if self.playerCollidesWithOtherPlayer(player, other_player):
-##                return True
-
-##        if self.playerCollidesWithItself(player):
-##            return True
-
-        # Check other players' trails
-        for trail in (p.trail for p in self.players if p != player):
-            if self.playerCollidesWithTrail(player, trail):
+        for other_player in (p for p in self.players if p != player):
+            if self.playerCollidesWithOtherPlayer(player, other_player):
                 return True
+
+        player_mask = pygame.mask.from_surface(player.surface)
+        overlap_point = trails_mask.overlap(player_mask, player.surface_position)
+        if overlap_point is not None:
+            return True
+
+        return False
 
     def playerCollidesWithWalls(self, player):
         x, y = player.position
