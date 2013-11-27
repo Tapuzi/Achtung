@@ -85,23 +85,23 @@ FONT_FILE_NAMES_TO_FILES = {path.basename(file): file for file in FONT_FILES}
 Color = namedtuple('Color', ['name', 'value', 'value_range'])
 
 COLORS = [
-##    Color('Cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
-##    Color('Red', (255, 0, 0), (numpy.array([127, 83, 108],numpy.uint8), numpy.array([180, 187, 191], numpy.uint8))),
-##    Color('Green', (0, 255, 0), (numpy.array([67, 108, 77],numpy.uint8), numpy.array([111, 209, 172], numpy.uint8))),
-    Color('Blue', (0, 0, 255), (numpy.array([87, 93, 74],numpy.uint8), numpy.array([131, 206, 121], numpy.uint8)))]
+    #Color('Cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
+    Color('Red', (255, 0, 0), (numpy.array([127, 83, 108],numpy.uint8), numpy.array([180, 187, 191], numpy.uint8))),
+    Color('Green', (0, 255, 0), (numpy.array([67, 108, 77],numpy.uint8), numpy.array([111, 209, 172], numpy.uint8))),
+    Color('Blue', (0, 0, 255), (numpy.array([107, 138, 105],numpy.uint8), numpy.array([141, 218, 197], numpy.uint8)))]
     #Color('Yellow', (255, 255, 0),(numpy.array([18, 60, 178],numpy.uint8), numpy.array([81, 143, 215], numpy.uint8)))]
 
 
 IDS = ['1337' for color in COLORS]
 COMPORTS = ['COM10']
 
-TRAIL_WIDTH = 10
-PLAYER_RADIUS = 60
+TRAIL_WIDTH = 1
+PLAYER_RADIUS = 7
 PLAYER_DIAMETER = PLAYER_RADIUS * 2
 PLAYER_BORDER_WIDTH = 1
 
-GAME_WIDTH = 600
-GAME_HIGHT = 600
+GAME_WIDTH = 500
+GAME_HIGHT = 500
 
 GAME_BORDER_WIDTH = 10
 GAME_BORDER_COLOR = (255, 255, 255)
@@ -120,7 +120,7 @@ WEBCAM_NUMBER = 0 #default webcam is 0
 ROBOT_NOT_FOUND_LIMIT = 20
 RECTANGLE_NOT_FOUND_LIMIT = 50
 NUMBER_OF_FRAMES_BETWEEN_BORDERS_SEARCH = 5000
-MINIMUM_BORDER_SIZE = 10000
+MINIMUM_BORDER_SIZE = 5
 
 FPS_LIMIT = 100
 
@@ -133,7 +133,7 @@ SCORE_CAP_MULTIPLIER = 5
 MAX_WHEEL_SPEED = 255
 MIN_WHEEL_SPEED = 0
 
-TURN_WHEEL_SPEED_DIFFERENCE = 64
+TURN_WHEEL_SPEED_DIFFERENCE = 32
 
 MAX_ROBOT_SPEED = MAX_WHEEL_SPEED - TURN_WHEEL_SPEED_DIFFERENCE
 MIN_ROBOT_SPEED = MIN_WHEEL_SPEED + TURN_WHEEL_SPEED_DIFFERENCE
@@ -143,7 +143,7 @@ DEFAULT_ROBOT_SPEED = 128
 # Debug speeds
 if DEBUG:
     ROTATION_SPEED = 180 # Degrees per second
-    DEFAULT_MOVEMENT_SPEED = 120 / 4 # pixels per second
+    DEFAULT_MOVEMENT_SPEED = 120 # pixels per second
     MAX_MOVEMENT_SPEED = 400
     MIN_MOVEMENT_SPEED = 30
 
@@ -318,7 +318,6 @@ class Trail:
         self.non_colliding_trail_length += distance_from_last_point
         while self.non_colliding_trail_length > NON_COLLIDING_TRAIL_MAX_LENGTH:
             first_last_point, is_hole, distance = self.last_points.pop(0)
-
             second_last_point, _, _ = self.last_points[0]
             self.non_colliding_trail_length -= distance
             self_collision_trail_color = (128, 0, 128) if DEBUG_TRAIL else self.color.value
@@ -885,10 +884,7 @@ class Game:
             if USE_WEBCAM:
                 webcam.takePicture()
             for player in self.players:
-                try:
-                    player.updatePosition()
-                except RobotNotFoundError:
-                    print 'pre_round) Robot not found'
+                player.updatePosition()
                 player.draw()
             self.drawBorders()
             self.drawGui()
@@ -966,11 +962,10 @@ class Game:
                     try:
                         player.updatePosition(add_to_trail=True)
                     except RobotNotFoundError:
-                        print 'round) Robot not found'
-                        pass#self.kill_player(player)
+                        self.kill_player(player)
 
-##                    if self.playerCrashesIntoAnything(player, trails_collision_mask):
-##                        self.kill_player(player)
+                    if self.playerCrashesIntoAnything(player, trails_collision_mask):
+                        self.kill_player(player)
 
                     for bonus in bonuses:
                         if self.playerCollidesWithBonus(player, bonus):
@@ -1113,6 +1108,28 @@ class Game:
         other_player_offset = Vec2d(other_player.surface_position) - Vec2d(player.surface_position)
 
         overlap_point = player_mask.overlap(other_player_mask, other_player_offset)
+        if overlap_point is None:
+            return False
+        else:
+            return True
+
+    def playerCollidesWithItself(self, player):
+        if USE_WEBCAM:
+            return False
+        player_mask = pygame.mask.from_surface(player.surface)
+        trail_mask = pygame.mask.from_surface(player.trail.self_collision_surface)
+
+        overlap_point = trail_mask.overlap(player_mask, player.surface_position)
+        if overlap_point is None:
+            return False
+        else:
+            return True
+
+    def playerCollidesWithTrail(self, player, trail):
+        player_mask = pygame.mask.from_surface(player.surface)
+        trail_mask = pygame.mask.from_surface(trail.surface)
+
+        overlap_point = trail_mask.overlap(player_mask, player.surface_position)
         if overlap_point is None:
             return False
         else:
