@@ -548,9 +548,9 @@ class Player:
         self.resetTimeToNextHole()
         self.score = 0
         if USE_ROBOTS:
-            ser = serial.Serial(XBEE_COMPORT, baudrate=38400)
-            arduino = ArduinoController(ser, self.color.robot_name)
-            self.robot_controller = RobotController(arduino)
+            self.ser = serial.Serial(XBEE_COMPORT, baudrate=38400)
+            self.arduino = ArduinoController(self.ser, self.color.robot_name)
+            self.robot_controller = RobotController(self.arduino)
 
     def reset(self):
         self.notFoundCounter = 0
@@ -1143,6 +1143,9 @@ def main():
     try:
         game.start()
     finally:
+        for player in game.players:
+            player.ser.close()
+        del game.players
         del game
         cleanup
 
