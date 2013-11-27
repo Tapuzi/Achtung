@@ -891,7 +891,8 @@ class Game:
                 try:
                     player.updatePosition()
                 except RobotNotFoundError:
-                    print 'pre_round) Robot not found'
+                    print 'pre_round) %s not found' % player.color.robot_name
+                    #self.kill_player(player)
                 player.draw()
             self.drawBorders()
             self.drawGui()
@@ -969,8 +970,8 @@ class Game:
                     try:
                         player.updatePosition(add_to_trail=True)
                     except RobotNotFoundError:
-                        print 'round) Robot not found'
-                        pass#self.kill_player(player)
+                        print 'round) %s not found' % player.color.robot_name
+                        #self.kill_player(player)
 
 ##                    if self.playerCrashesIntoAnything(player, trails_collision_mask):
 ##                        self.kill_player(player)
