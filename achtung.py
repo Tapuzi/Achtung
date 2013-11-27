@@ -1140,8 +1140,11 @@ def main():
     game_screen = Screen()
     music_mixer = MusicMixer()
     game = Game(game_screen, music_mixer)
-    game.start()
-    exit_()
+    try:
+        game.start()
+    finally:
+        del game
+        cleanup
 
 if "__main__" == __name__:
     main()
