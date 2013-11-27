@@ -129,7 +129,8 @@ FPS_LIMIT = 100
 
 TIME_TO_HOLE_MIN = 1.25 * 1000
 TIME_TO_HOLE_MAX = 1.75 * 1000
-HOLE_LENGTH = PLAYER_DIAMETER * 2
+#HOLE_LENGTH = PLAYER_DIAMETER * 2
+HOLE_LENGTH = 0
 
 SCORE_CAP_MULTIPLIER = 5
 
@@ -144,11 +145,10 @@ MIN_ROBOT_SPEED = MIN_WHEEL_SPEED + TURN_WHEEL_SPEED_DIFFERENCE
 DEFAULT_ROBOT_SPEED = 128
 
 # Debug speeds
-if DEBUG_SIMULATE_MOTION:
-    ROTATION_SPEED = 180 # Degrees per second
-    DEFAULT_MOVEMENT_SPEED = 120 / 4 # pixels per second
-    MAX_MOVEMENT_SPEED = 400
-    MIN_MOVEMENT_SPEED = 30
+ROTATION_SPEED = 180 # Degrees per second
+DEFAULT_MOVEMENT_SPEED = 120 / 2 # pixels per second
+MAX_MOVEMENT_SPEED = 400
+MIN_MOVEMENT_SPEED = 30
 
 SPEED_MODIFICATION_RATIO = 0.50
 
@@ -569,12 +569,12 @@ class Player:
 
     def stop(self):
         self.setSpeed(0)
-        if not DEBUG_WITHOUT_ROBOT:
+        if USE_ROBOTS:
             self.robot_controller.stop()
 
     def setSpeed(self, robot_speed, movement_speed=0):
         self.robot_speed = robot_speed
-        if not DEBUG_WITHOUT_ROBOT:
+        if USE_ROBOTS:
             self.robot_controller.speed = robot_speed
         if DEBUG_SIMULATE_MOTION:
             self.movement_speed = movement_speed
@@ -636,7 +636,6 @@ class Player:
         if USE_WEBCAM:
             self.position = Vec2d(webcam.findPlayer(self))
 
-
         self.surface_position = (int(self.position.x - PLAYER_RADIUS), int(self.position.y - PLAYER_RADIUS))
         self.surface.fill(CLEAR_COLOR)
         pygame.draw.circle(self.surface, GAME_BACKGROUNG_COLOR, (PLAYER_RADIUS, PLAYER_RADIUS), PLAYER_RADIUS)
@@ -661,7 +660,7 @@ class Player:
 
     def updateDirection(self):
         self.direction = self.controller.getDirection()
-        if not DEBUG_WITHOUT_ROBOT:
+        if USE_ROBOTS:
             self.robot_controller.direction = self.direction
 
         if self.should_reverse_direction:
@@ -868,7 +867,7 @@ class Game:
             player.reset()
         self.players_alive = self.players[:]
 
-        if DEBUG_SIMULATE_MOTION:
+        if not USE_WEBCAM:
             self._randomize_players_positions_and_direction_vectors()
 
         self.pre_round_wait()
@@ -964,7 +963,7 @@ class Game:
 
                 for player in self.players_alive[:]:
                     player.updateDirection()
-                    if not DEBUG_WITHOUT_ROBOT:
+                    if USE_ROBOTS:
                         player.robot_controller.updateRobotMovement()
                     player.tick(tick_duration)
                     try:
