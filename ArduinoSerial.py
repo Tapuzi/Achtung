@@ -80,22 +80,22 @@ def main():
 
 	time.sleep(2)
 
-##	firstUnit.setSpeedRight(230)
-##	firstUnit.setSpeedLeft(170)
+	firstUnit.setSpeedRight(230)
+	firstUnit.setSpeedLeft(170)
 
-##	time.sleep(2)
+	time.sleep(2)
 
-##	firstUnit.stop()
-##	firstUnit.start(0)
-##	firstUnit.setSpeedRight(-200)
-##	firstUnit.setSpeedLeft(200)
+	firstUnit.stop()
+	firstUnit.start(0)
+	firstUnit.setSpeedRight(-200)
+	firstUnit.setSpeedLeft(200)
 
-##	time.sleep(2)
+	time.sleep(2)
 
 	#firstUnit.stop()
 	#firstUnit.start(0)
-##	firstUnit.setSpeedRight(200)
-##	firstUnit.setSpeedLeft(-200)
+	firstUnit.setSpeedRight(200)
+	firstUnit.setSpeedLeft(-200)
 
 ##	time.sleep(2)
 

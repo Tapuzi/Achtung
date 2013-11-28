@@ -85,7 +85,7 @@ FONT_FILE_NAMES_TO_FILES = {path.basename(file): file for file in FONT_FILES}
 Color = namedtuple('Color', ['name', 'robot_name', 'value', 'value_range'])
 
 COLORS = [
-    Color('Blue', '1111', (0, 0, 255), (numpy.array([87, 93, 74],numpy.uint8), numpy.array([131, 206, 121], numpy.uint8))),
+    Color('Blue', '1111', (0, 0, 255), (numpy.array([80, 108, 18],numpy.uint8), numpy.array([142, 222, 74], numpy.uint8))),
     Color('Red', 'red0', (255, 0, 0), (numpy.array([127, 83, 108],numpy.uint8), numpy.array([180, 187, 191], numpy.uint8))),
     Color('Green', 'gren', (0, 255, 0), (numpy.array([67, 108, 77],numpy.uint8), numpy.array([111, 209, 172], numpy.uint8))),
     Color('Cyan', 'cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
@@ -109,7 +109,8 @@ GAME_HIGHT = 600
 GAME_BORDER_WIDTH = 10
 GAME_BORDER_COLOR = (255, 255, 255)
 
-GUI_MARGIN = 150
+#GUI_MARGIN = 150
+GUI_MARGIN = 0
 TITLE_MARGIN = 75
 SCORES_MARGIN_BOTTOM = 15
 
@@ -399,6 +400,7 @@ class WebCam(object):
         while len(self.approx) == 0:
             self.takePicture()
             self.approx = self.findBorder()
+            print self.approx
             if len(self.approx) == 0:
                 retriesCounter += 1
             if retriesCounter == RECTANGLE_NOT_FOUND_LIMIT:
@@ -436,9 +438,11 @@ class WebCam(object):
                     maxContourArea = cntArea
                     maxCnt = cnt
                     maxApprox = approx
-
-
-            if maxContourArea != MINIMUM_BORDER_SIZE:
+                    
+                    
+                    
+            if maxContourArea != MINIMUM_BORDER_SIZE and maxApprox > 0:
+                print self.rectify(maxApprox) # if no frame found -> stay with last borders
                 return self.rectify(maxApprox) # if no frame found -> stay with last borders
 
     def frameToBorder(self):
@@ -539,7 +543,7 @@ class Player:
         self.upperColor = color.value_range[1]
         self.alive = True
         self.direction = None
-        self.position = None
+        self.position = Vec2d(GAME_WIDTH/2, GAME_HIGHT/2)
         self.last_position = None
         self.surface_position = None
         self.robot_speed = 0
@@ -573,7 +577,8 @@ class Player:
         self.should_reverse_direction = False
 
     def go(self):
-        self.robot_controller.go()
+        if USE_ROBOTS:
+            self.robot_controller.go()
         self.setSpeed(DEFAULT_ROBOT_SPEED, DEFAULT_MOVEMENT_SPEED)
 
     def stop(self):
@@ -1063,6 +1068,7 @@ class Game:
         pygame.draw.rect(self.screen_surface, GAME_BORDER_COLOR, border_rectangle)
 
     def drawGui(self):
+        return
         gui_rect = (0, 0, SCREEN_WIDTH, GUI_MARGIN)
         self.screen_surface.fill(GUI_BACKGROUND_COLOR, gui_rect)
         self.drawTitle()
@@ -1152,8 +1158,9 @@ def main():
     try:
         game.start()
     finally:
-        for player in game.players:
-            player.ser.close()
+        if USE_ROBOTS:
+            for player in game.players:
+                player.ser.close()
         del game.players
         del game
         cleanup
