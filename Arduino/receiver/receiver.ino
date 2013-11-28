@@ -67,6 +67,7 @@ void loop() {
           
               if (current_command.key == "start") {
                  Serial.println("Start the hub-ee wheels");
+                 Serial.println(incomingCommand);
                  leftWheel.setStandbyMode(0);
                  rightWheel.setStandbyMode(0);
                  leftWheel.setMotorPower(current_command.value.toInt());

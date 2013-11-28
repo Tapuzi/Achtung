@@ -85,12 +85,13 @@ FONT_FILE_NAMES_TO_FILES = {path.basename(file): file for file in FONT_FILES}
 Color = namedtuple('Color', ['name', 'robot_name', 'value', 'value_range'])
 
 COLORS = [
-    Color('Blue', '1111', (0, 0, 255), (numpy.array([94, 76, 64],numpy.uint8), numpy.array([118, 184, 106], numpy.uint8))
-    ),
-    Color('Red', 'red0', (255, 0, 0), (numpy.array([127, 83, 108],numpy.uint8), numpy.array([180, 187, 191], numpy.uint8))),
-    Color('Green', 'gren', (0, 255, 0), (numpy.array([67, 108, 77],numpy.uint8), numpy.array([111, 209, 172], numpy.uint8))),
+    Color('Blue', '1111', (0, 0, 255), (numpy.array([73, 87, 37],numpy.uint8), numpy.array([132, 194, 125], numpy.uint8))),
+    Color('Orange', '2222', (255, 128, 0),(numpy.array([0, 173, 74],numpy.uint8), numpy.array([20, 240, 236], numpy.uint8))),
+    #Color('Red', '2222', (255, 0, 0), (numpy.array([127, 83, 108],numpy.uint8), numpy.array([180, 187, 191], numpy.uint8))),
+    #Color('Green', '2222', (0, 255, 0), (numpy.array([40, 112, 49],numpy.uint8), numpy.array([64, 229, 106], numpy.uint8))),
     Color('Cyan', 'cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
     Color('Yellow', 'yllw', (255, 255, 0),(numpy.array([18, 60, 178],numpy.uint8), numpy.array([81, 143, 215], numpy.uint8))),
+    
 ]
 
 
@@ -100,14 +101,15 @@ COLORS = [
 XBEE_COMPORT = 'COM6'
 
 TRAIL_WIDTH = 10
-PLAYER_RADIUS = 45
+#PLAYER_RADIUS = 50
+PLAYER_RADIUS = 15
 PLAYER_DIAMETER = PLAYER_RADIUS * 2
-PLAYER_BORDER_WIDTH = 1
+PLAYER_BORDER_WIDTH = 3
 
 GAME_WIDTH = 600
 GAME_HIGHT = 600
 
-GAME_BORDER_WIDTH = 10
+GAME_BORDER_WIDTH = 15
 GAME_BORDER_COLOR = (255, 255, 255)
 
 #GUI_MARGIN = 150
@@ -154,7 +156,7 @@ MIN_MOVEMENT_SPEED = 30
 
 SPEED_MODIFICATION_RATIO = 0.50
 
-NON_COLLIDING_TRAIL_MAX_LENGTH = PLAYER_RADIUS + 5
+NON_COLLIDING_TRAIL_MAX_LENGTH = int(PLAYER_RADIUS * 2.5)
 
 CLEAR_COLOR = (0, 0, 0, 0)
 
@@ -322,13 +324,16 @@ class Trail:
 
         self.non_colliding_trail_length += distance_from_last_point
         while self.non_colliding_trail_length > NON_COLLIDING_TRAIL_MAX_LENGTH:
-            first_last_point, is_hole, distance = self.last_points.pop(0)
+            try:
+                first_last_point, is_hole, distance = self.last_points.pop(0)
 
-            second_last_point, _, _ = self.last_points[0]
-            self.non_colliding_trail_length -= distance
-            self_collision_trail_color = (128, 0, 128) if DEBUG_TRAIL else self.color.value
-            if not is_hole:
-                pygame.draw.line(self.self_collision_surface, self_collision_trail_color, first_last_point, second_last_point, TRAIL_WIDTH)
+                second_last_point, _, _ = self.last_points[0]
+                self.non_colliding_trail_length -= distance
+                self_collision_trail_color = (128, 0, 128) if DEBUG_TRAIL else self.color.value
+                if not is_hole:
+                    pygame.draw.line(self.self_collision_surface, self_collision_trail_color, first_last_point, second_last_point, TRAIL_WIDTH)
+            except IndexError:
+                pass
 
     def draw(self):
         self.game_surface.blit(self.surface, (0, 0))
@@ -356,12 +361,13 @@ class RobotController(object):
             return
 
         #Reverse direction...
-        if self.direction == RIGHT:
-            direction = LEFT
-        elif self.direction == LEFT:
-            direction = RIGHT
-        else:
-            direction = STRAIGHT
+        #if self.direction == RIGHT:
+        #    direction = LEFT
+        #elif self.direction == LEFT:
+        #    direction = RIGHT
+        #else:
+        #    direction = STRAIGHT
+        direction = self.direction
 
         if direction == STRAIGHT:
             self.controller.setSpeedLeft(self.speed)
@@ -533,7 +539,8 @@ class WebCam(object):
         return cropedFrame, topX, topY
 
 class Player:
-    def __init__(self, game_surface, color, controller):
+    def __init__(self, game_surface, color, controller, ser, use_robot):
+        self.use_robot = use_robot
         self.game_surface = game_surface
         self.surface = pygame.Surface((PLAYER_DIAMETER, PLAYER_DIAMETER), flags=pygame.SRCALPHA)
         self.color = color
@@ -557,9 +564,8 @@ class Player:
         self.creating_hole = False
         self.resetTimeToNextHole()
         self.score = 0
-        if USE_ROBOTS:
-            self.ser = serial.Serial(XBEE_COMPORT, baudrate=38400)
-            self.arduino = ArduinoController(self.ser, self.color.robot_name)
+        if self.use_robot:
+            self.arduino = ArduinoController(ser, self.color.robot_name)
             self.robot_controller = RobotController(self.arduino)
 
     def reset(self):
@@ -575,20 +581,20 @@ class Player:
         self.should_reverse_direction = False
 
     def go(self):
-        if USE_ROBOTS:
+        if self.use_robot:
             self.robot_controller.go()
         self.setSpeed(DEFAULT_ROBOT_SPEED, DEFAULT_MOVEMENT_SPEED)
 
     def stop(self):
         self.setSpeed(0)
-        if USE_ROBOTS:
+        if self.use_robot:
             self.robot_controller.stop()
 
     def setSpeed(self, robot_speed, movement_speed=0):
         self.robot_speed = robot_speed
-        if USE_ROBOTS:
+        if self.use_robot:
             self.robot_controller.speed = robot_speed
-        if DEBUG_SIMULATE_MOTION:
+        if not self.use_robot:
             self.movement_speed = movement_speed
 
     def modifySpeed(self, robot_speed_delta, movement_speed_delta=0):
@@ -600,7 +606,7 @@ class Player:
         if self.robot_speed + robot_speed_delta < MIN_ROBOT_SPEED:
             robot_speed_delta = -(self.robot_speed - MIN_ROBOT_SPEED)
 
-        if DEBUG_SIMULATE_MOTION:
+        if not self.use_robot:
             if self.movement_speed + movement_speed_delta > MAX_MOVEMENT_SPEED:
                 movement_speed_delta = MAX_MOVEMENT_SPEED - self.movement_speed
             if self.movement_speed + movement_speed_delta < MIN_MOVEMENT_SPEED:
@@ -619,7 +625,7 @@ class Player:
     def tick(self, tick_duration):
         self.tick_duration = tick_duration
 
-        if DEBUG_SIMULATE_MOTION:
+        if not self.use_robot:
             self._move()
 
         if not self.creating_hole:
@@ -629,7 +635,7 @@ class Player:
                 self.hole_length_remaining = HOLE_LENGTH
 
     def _move(self):
-        assert DEBUG_SIMULATE_MOTION
+        assert not self.use_robot
         tick_duration_seconds = self.tick_duration / 1000.0
         rotation = ROTATION_SPEED * tick_duration_seconds
         movement = self.movement_speed * tick_duration_seconds
@@ -671,7 +677,7 @@ class Player:
 
     def updateDirection(self):
         self.direction = self.controller.getDirection()
-        if USE_ROBOTS:
+        if self.use_robot:
             self.robot_controller.direction = self.direction
 
         if self.should_reverse_direction:
@@ -763,7 +769,12 @@ class Game:
         self.menu_select_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['menuselect.wav'])
 
         controllers = getDefaultControllers(PLAYERS_COUNT) # Note: changed this. removed self.controllers, which was unused. If it shall be used, a good version of it will be a "getControllers" method which dinamically updates the controllers.
-        self.players = [Player(self.game_surface, color, controller) for color, controller in zip(COLORS, controllers)]
+        if NUMBER_OF_ROBOTS_TO_USE > 1:
+            self.ser = serial.Serial(XBEE_COMPORT, baudrate=38400)
+        else:
+            self.ser = None
+        robot_usage = [True] * NUMBER_OF_ROBOTS_TO_USE + [False] * (PLAYERS_COUNT - NUMBER_OF_ROBOTS_TO_USE)
+        self.players = [Player(self.game_surface, color, controller, self.ser, use_robot) for color, controller, use_robot in zip(COLORS, controllers, robot_usage)]
         self.players_alive = self.players[:]
 
         # Set menus
@@ -980,18 +991,18 @@ class Game:
 
                     for player in self.players_alive[:]:
                         player.updateDirection()
-                        if USE_ROBOTS:
+                        if player.use_robot:
                             player.robot_controller.updateRobotMovement()
                         player.tick(tick_duration)
                         try:
-                            #player.updatePosition(add_to_trail=True)
-                            player.updatePosition(add_to_trail=False)
+                            player.updatePosition(add_to_trail=True)
+                            #player.updatePosition(add_to_trail=False)
                         except RobotNotFoundError:
                             print 'round) %s not found' % player.color.robot_name
                             #self.kill_player(player)
 
-    ##                    if self.playerCrashesIntoAnything(player, trails_collision_mask):
-    ##                        self.kill_player(player)
+                        if self.playerCrashesIntoAnything(player, trails_collision_mask):
+                            self.kill_player(player)
 
                         for bonus in bonuses:
                             if self.playerCollidesWithBonus(player, bonus):
@@ -1161,9 +1172,8 @@ def main():
     try:
         game.start()
     finally:
-        if USE_ROBOTS:
-            for player in game.players:
-                player.ser.close()
+        if NUMBER_OF_ROBOTS_TO_USE > 1:
+            game.ser.close()
         del game.players
         del game
         cleanup

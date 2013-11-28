@@ -67,13 +67,13 @@ def main():
 	ser = serial.Serial('COM6', baudrate=38400)
 
 	firstUnit = ArduinoController(ser, '1111')
-##	secondUnit = ArduinoController(ser, '2222')
+	secondUnit = ArduinoController(ser, '2222')
 ##	thirdUnit = ArduinoController(ser, '3333')
 ##	forthUnit = ArduinoController(ser, '4444')
 ##	fifthUnit = ArduinoController(ser, '5555')
 
-	firstUnit.start(180)
-##	secondUnit.start(200)
+	firstUnit.start(200 )
+	secondUnit.start(200)
 ##	thirdUnit.start(200)
 ##	forthUnit.start(200)
 ##	fifthUnit.start(200)
@@ -100,7 +100,7 @@ def main():
 ##	time.sleep(2)
 
 	firstUnit.stop()
-##	secondUnit.stop()
+	secondUnit.stop()
 ##	thirdUnit.stop()
 ##	forthUnit.stop()
 ##	fifthUnit.stop()
