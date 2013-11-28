@@ -386,7 +386,7 @@ class WebCam(object):
         self.framesCounter = 0
         self.frame = None
         self.numberOfFramesBetweenEachCheck = NUMBER_OF_FRAMES_BETWEEN_BORDERS_SEARCH
-        
+
     def takePicture(self):
         ret, frame = self.webCamCapture.read()
         if ret:
@@ -437,7 +437,7 @@ class WebCam(object):
                     maxContourArea = cntArea
                     maxCnt = cnt
                     maxApprox = approx
-                    
+
             if maxContourArea != MINIMUM_BORDER_SIZE and len(maxApprox) != 0:
                 return self.rectify(maxApprox) # if no frame found -> stay with last borders
             else:
@@ -786,7 +786,7 @@ class Game:
         self.controllers_options_menu.setExitFunction(self.set_controls_menu.showMenu)
 
     def _randomize_players_positions_and_direction_vectors(self):
-        for player in self.players:
+        for player in (p for p in self.players if not p.use_robot):
             MARGIN_FACTOR = 5
             WIDTH_MARGIN = GAME_WIDTH / MARGIN_FACTOR
             HIGHT_MARGIN = GAME_HIGHT / MARGIN_FACTOR
@@ -878,8 +878,7 @@ class Game:
             player.reset()
         self.players_alive = self.players[:]
 
-        if not USE_WEBCAM:
-            self._randomize_players_positions_and_direction_vectors()
+        self._randomize_players_positions_and_direction_vectors()
 
         self.pre_round_wait()
         self.pre_round_start()
