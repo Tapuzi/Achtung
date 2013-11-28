@@ -589,8 +589,7 @@ class Player:
         self.robot_speed = robot_speed
         if self.use_robot:
             self.robot_controller.speed = robot_speed
-        if DEBUG_SIMULATE_MOTION:
-            self.movement_speed = movement_speed
+        self.movement_speed = movement_speed
 
     def modifySpeed(self, robot_speed_delta, movement_speed_delta=0):
         self.setSpeed(self.robot_speed + robot_speed_delta, self.movement_speed + movement_speed_delta)
@@ -601,11 +600,10 @@ class Player:
         if self.robot_speed + robot_speed_delta < MIN_ROBOT_SPEED:
             robot_speed_delta = -(self.robot_speed - MIN_ROBOT_SPEED)
 
-        if DEBUG_SIMULATE_MOTION:
-            if self.movement_speed + movement_speed_delta > MAX_MOVEMENT_SPEED:
-                movement_speed_delta = MAX_MOVEMENT_SPEED - self.movement_speed
-            if self.movement_speed + movement_speed_delta < MIN_MOVEMENT_SPEED:
-                movement_speed_delta = -(self.movement_speed - MIN_MOVEMENT_SPEED)
+        if self.movement_speed + movement_speed_delta > MAX_MOVEMENT_SPEED:
+            movement_speed_delta = MAX_MOVEMENT_SPEED - self.movement_speed
+        if self.movement_speed + movement_speed_delta < MIN_MOVEMENT_SPEED:
+            movement_speed_delta = -(self.movement_speed - MIN_MOVEMENT_SPEED)
 
         self.modifySpeed(robot_speed_delta, movement_speed_delta)
         return robot_speed_delta, movement_speed_delta
@@ -620,7 +618,7 @@ class Player:
     def tick(self, tick_duration):
         self.tick_duration = tick_duration
 
-        if DEBUG_SIMULATE_MOTION:
+        if not self.use_robot:
             self._move()
 
         if not self.creating_hole:
@@ -630,7 +628,7 @@ class Player:
                 self.hole_length_remaining = HOLE_LENGTH
 
     def _move(self):
-        assert DEBUG_SIMULATE_MOTION
+        assert not self.use_robot
         tick_duration_seconds = self.tick_duration / 1000.0
         rotation = ROTATION_SPEED * tick_duration_seconds
         movement = self.movement_speed * tick_duration_seconds
