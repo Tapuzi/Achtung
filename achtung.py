@@ -100,20 +100,19 @@ COLORS = [
 
 XBEE_COMPORT = 'COM6'
 
-TRAIL_WIDTH = 10
-#PLAYER_RADIUS = 50
-PLAYER_RADIUS = 15
+TRAIL_WIDTH = 6
+#PLAYER_RADIUS = 5
+PLAYER_RADIUS = 6
 PLAYER_DIAMETER = PLAYER_RADIUS * 2
 PLAYER_BORDER_WIDTH = 3
 
-GAME_WIDTH = 600
-GAME_HIGHT = 600
+GAME_WIDTH =1000
+GAME_HIGHT = 650
 
 GAME_BORDER_WIDTH = 15
 GAME_BORDER_COLOR = (255, 255, 255)
 
-#GUI_MARGIN = 150
-GUI_MARGIN = 0
+GUI_MARGIN = 150
 TITLE_MARGIN = 75
 SCORES_MARGIN_BOTTOM = 15
 
@@ -136,7 +135,7 @@ TIME_TO_HOLE_MAX = 1.75 * 1000
 HOLE_LENGTH = PLAYER_DIAMETER * 2
 #HOLE_LENGTH = 0
 
-SCORE_CAP_MULTIPLIER = 5
+SCORE_CAP_MULTIPLIER = 3
 
 MAX_WHEEL_SPEED = 255
 MIN_WHEEL_SPEED = 0
@@ -170,8 +169,8 @@ WINNING_ANNOUNCEMENT_BOX_BORDER_WIDTH = 5
 BONUS_SIZE = 35
 BONUS_DIMENSIONS = (BONUS_SIZE, BONUS_SIZE)
 
-TIME_TO_BONUS_MIN = 3 * 1000
-TIME_TO_BONUS_MAX = 10 * 1000
+TIME_TO_BONUS_MIN = 1 * 1000
+TIME_TO_BONUS_MAX = 3 * 1000
 if DEBUG_BONUSES:
     TIME_TO_BONUS_MIN = 1 * 1000
     TIME_TO_BONUS_MAX = 2 * 1000
@@ -243,14 +242,14 @@ class ModifySelfSpeed(Bonus):
 
 class SpeedUpSelf(ModifySelfSpeed):
     surface = load_bonus_image('SpeedUp.png')
-    DURATION_MIN = 1 * 1000
+    DURATION_MIN = 1.7 * 1000
     DURATION_MAX = 3 * 1000
     ROBOT_SPEED_DELTA = DEFAULT_ROBOT_SPEED * SPEED_MODIFICATION_RATIO
     MOVEMENT_SPEED_DELTA = DEFAULT_MOVEMENT_SPEED * SPEED_MODIFICATION_RATIO
 
 class SpeedDownSelf(ModifySelfSpeed):
     surface = load_bonus_image('SpeedDown.png')
-    DURATION_MIN = 1 * 1000
+    DURATION_MIN = 1.7 * 1000
     DURATION_MAX = 3 * 1000
     ROBOT_SPEED_DELTA = -(DEFAULT_ROBOT_SPEED * SPEED_MODIFICATION_RATIO)
     MOVEMENT_SPEED_DELTA = -(DEFAULT_MOVEMENT_SPEED * SPEED_MODIFICATION_RATIO)
@@ -279,19 +278,22 @@ class SpeedDownSelf(ModifySelfSpeed):
 
 class ReverseDirectionsAll(Bonus):
     surface = load_bonus_image('ReverseDirections.png')
-    DURATION_MIN = 1 * 1000
+    DURATION_MIN = 1.7 * 1000
     DURATION_MAX = 3 * 1000
 
     def activate(self, picker):
         super(ReverseDirectionsAll, self).activate(picker)
 
         self.players_affected = self.game.players_alive
+        
         for player in self.players_affected:
             player.should_reverse_direction = True
+            player.temp_color = (255, 174, 201)
 
     def deactivate(self):
         for player in self.players_affected:
             player.should_reverse_direction = False
+            player.temp_color = None
 
 # TODO: make Game choose random bonuses from these
 #BONUSES = [SpeedUpSelf, SpeedUpOthers, SpeedDownSelf, SpeedDownOthers]
@@ -353,7 +355,8 @@ class RobotController(object):
         self.controller.start(DEFAULT_ROBOT_SPEED)
 
     def stop(self):
-        self.controller.stop()
+        for i in xrange(5):
+            self.controller.stop()
 
     def updateRobotMovement(self):
         movement_changed = self.speed != self.prev_speed or self.direction != self.prev_direction
@@ -554,6 +557,7 @@ class Player:
         self.robot_speed = 0
         self.movement_speed = 0
         self.trail = Trail(self.game_surface, color)
+        self.temp_color = None
         self.controller = controller
         self.radius = SEARCH_RADIUS
         self.notFoundCounter = 0
@@ -657,7 +661,8 @@ class Player:
         self.surface_position = (int(self.position.x - PLAYER_RADIUS), int(self.position.y - PLAYER_RADIUS))
         self.surface.fill(CLEAR_COLOR)
         pygame.draw.circle(self.surface, GAME_BACKGROUNG_COLOR, (PLAYER_RADIUS, PLAYER_RADIUS), PLAYER_RADIUS)
-        pygame.draw.circle(self.surface, self.color.value, (PLAYER_RADIUS, PLAYER_RADIUS), PLAYER_RADIUS, PLAYER_BORDER_WIDTH)
+        circle_color = self.temp_color if self.temp_color else self.color.value
+        pygame.draw.circle(self.surface, circle_color, (PLAYER_RADIUS, PLAYER_RADIUS), PLAYER_RADIUS, PLAYER_BORDER_WIDTH)
 
         distance_from_last_point = 0
         if self.last_position is not None:
@@ -769,7 +774,7 @@ class Game:
         self.menu_select_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['menuselect.wav'])
 
         controllers = getDefaultControllers(PLAYERS_COUNT) # Note: changed this. removed self.controllers, which was unused. If it shall be used, a good version of it will be a "getControllers" method which dinamically updates the controllers.
-        if NUMBER_OF_ROBOTS_TO_USE > 1:
+        if NUMBER_OF_ROBOTS_TO_USE >= 1:
             self.ser = serial.Serial(XBEE_COMPORT, baudrate=38400)
         else:
             self.ser = None
@@ -1082,7 +1087,6 @@ class Game:
         pygame.draw.rect(self.screen_surface, GAME_BORDER_COLOR, border_rectangle)
 
     def drawGui(self):
-        return
         gui_rect = (0, 0, SCREEN_WIDTH, GUI_MARGIN)
         self.screen_surface.fill(GUI_BACKGROUND_COLOR, gui_rect)
         self.drawTitle()
