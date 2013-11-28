@@ -343,7 +343,7 @@ class RobotController(object):
         self.prev_direction = self.direction
 
     def go(self):
-        self.controller.move()
+        self.controller.start(DEFAULT_ROBOT_SPEED)
 
     def stop(self):
         self.controller.stop()
@@ -353,13 +353,21 @@ class RobotController(object):
         if not movement_changed:
             return
 
-        if self.direction == STRAIGHT:
+        #Reverse direction...
+        if self.direction == RIGHT:
+            direction = LEFT
+        elif self.direction == LEFT:
+            direction = RIGHT
+        else:
+            direction = STRAIGHT
+
+        if direction == STRAIGHT:
             self.controller.setSpeedLeft(self.speed)
             self.controller.setSpeedRight(self.speed)
-        elif self.direction == RIGHT:
+        elif direction == RIGHT:
             self.controller.setSpeedLeft(self.speed + TURN_WHEEL_SPEED_DIFFERENCE)
             self.controller.setSpeedRight(self.speed - TURN_WHEEL_SPEED_DIFFERENCE)
-        elif self.direction == LEFT:
+        elif direction == LEFT:
             self.controller.setSpeedLeft(self.speed - TURN_WHEEL_SPEED_DIFFERENCE)
             self.controller.setSpeedRight(self.speed + TURN_WHEEL_SPEED_DIFFERENCE)
         else:
@@ -565,6 +573,7 @@ class Player:
         self.should_reverse_direction = False
 
     def go(self):
+        self.robot_controller.go()
         self.setSpeed(DEFAULT_ROBOT_SPEED, DEFAULT_MOVEMENT_SPEED)
 
     def stop(self):
@@ -654,7 +663,6 @@ class Player:
 
         if add_to_trail:
             self.trail.addPoint(Vec2d(self.position), self.creating_hole, distance_from_last_point)
-
 
         self.last_position = Vec2d(self.position)
 
@@ -968,7 +976,8 @@ class Game:
                             player.robot_controller.updateRobotMovement()
                         player.tick(tick_duration)
                         try:
-                            player.updatePosition(add_to_trail=True)
+                            #player.updatePosition(add_to_trail=True)
+                            player.updatePosition(add_to_trail=False)
                         except RobotNotFoundError:
                             print 'round) %s not found' % player.color.robot_name
                             #self.kill_player(player)
