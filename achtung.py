@@ -85,7 +85,8 @@ FONT_FILE_NAMES_TO_FILES = {path.basename(file): file for file in FONT_FILES}
 Color = namedtuple('Color', ['name', 'robot_name', 'value', 'value_range'])
 
 COLORS = [
-    Color('Blue', '1111', (0, 0, 255), (numpy.array([80, 108, 18],numpy.uint8), numpy.array([142, 222, 74], numpy.uint8))),
+    Color('Blue', '1111', (0, 0, 255), (numpy.array([94, 76, 64],numpy.uint8), numpy.array([118, 184, 106], numpy.uint8))
+    ),
     Color('Red', 'red0', (255, 0, 0), (numpy.array([127, 83, 108],numpy.uint8), numpy.array([180, 187, 191], numpy.uint8))),
     Color('Green', 'gren', (0, 255, 0), (numpy.array([67, 108, 77],numpy.uint8), numpy.array([111, 209, 172], numpy.uint8))),
     Color('Cyan', 'cyan', (0, 255, 255), (numpy.array([0, 240, 240],numpy.uint8),numpy.array([15, 255, 255],numpy.uint8))),
@@ -99,7 +100,7 @@ COLORS = [
 XBEE_COMPORT = 'COM6'
 
 TRAIL_WIDTH = 10
-PLAYER_RADIUS = 16
+PLAYER_RADIUS = 45
 PLAYER_DIAMETER = PLAYER_RADIUS * 2
 PLAYER_BORDER_WIDTH = 1
 
@@ -385,8 +386,7 @@ class WebCam(object):
         self.framesCounter = 0
         self.frame = None
         self.numberOfFramesBetweenEachCheck = NUMBER_OF_FRAMES_BETWEEN_BORDERS_SEARCH
-        self.dontStartUntilBorderIsFound()
-
+        
     def takePicture(self):
         ret, frame = self.webCamCapture.read()
         if ret:
@@ -400,7 +400,6 @@ class WebCam(object):
         while len(self.approx) == 0:
             self.takePicture()
             self.approx = self.findBorder()
-            print self.approx
             if len(self.approx) == 0:
                 retriesCounter += 1
             if retriesCounter == RECTANGLE_NOT_FOUND_LIMIT:
@@ -425,7 +424,7 @@ class WebCam(object):
         """find game's borders"""
         maxContourArea = MINIMUM_BORDER_SIZE #minimum borders size
         maxCnt = 0
-        maxApprox = 0
+        maxApprox = []
         gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
         thresh = cv2.adaptiveThreshold(gray, 255,1,1,11,2)
         contours, hier = cv2.findContours(thresh, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
@@ -439,11 +438,10 @@ class WebCam(object):
                     maxCnt = cnt
                     maxApprox = approx
                     
-                    
-                    
-            if maxContourArea != MINIMUM_BORDER_SIZE and maxApprox > 0:
-                print self.rectify(maxApprox) # if no frame found -> stay with last borders
+            if maxContourArea != MINIMUM_BORDER_SIZE and len(maxApprox) != 0:
                 return self.rectify(maxApprox) # if no frame found -> stay with last borders
+            else:
+                return self.approx
 
     def frameToBorder(self):
         """transform frame to fit to borders"""
@@ -704,7 +702,7 @@ class Player:
     def updatePlayerRadius(self):
         """change player radius after initialisation SHOULD BE CHANGED!! NOT GOOD!"""
         if self.radius == SEARCH_RADIUS:
-            self.radius = 100
+            self.radius = 300
 
     def setController(self, controller):
         """Change the player's controller"""
@@ -893,6 +891,12 @@ class Game:
             self.music_mixer.setVolume(self.music_mixer.background_music_volume_low)
 
     def pre_round_wait(self):
+        self.clearSurface()
+        self.drawBorders()
+        self.drawGui()
+        self.updateDisplay()
+        if USE_WEBCAM:
+            webcam.dontStartUntilBorderIsFound()
         while True:
             events = self.handle_events()
 
