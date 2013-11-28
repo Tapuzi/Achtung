@@ -11,8 +11,8 @@
 
 // Declaring a software serial for the xbee module
 SoftwareSerial xbee(2, 3); // Rx, Tx
-HUBeeBMDWheel rightWheel(8, 11, 9);
-HUBeeBMDWheel leftWheel(12, 13, 10);
+HUBeeBMDWheel rightWheel(8, 11, 9, 6);
+HUBeeBMDWheel leftWheel(12, 13, 10, 7);
 
 const int local_led_pin = 13;
 String incomingCommand;
@@ -40,13 +40,13 @@ void setup() {
       xbee.begin(38400);
       
       leftWheel.setBrakeMode(1);
-      leftWheel.setDirectionMode(0);
-      leftWheel.setStandbyMode(0);
+      leftWheel.setDirectionMode(1);
+      leftWheel.setStandbyMode(1);
       leftWheel.setMotorPower(0);
       
       rightWheel.setBrakeMode(1);
-      rightWheel.setDirectionMode(1);
-      rightWheel.setStandbyMode(0);
+      rightWheel.setDirectionMode(0);
+      rightWheel.setStandbyMode(1);
       rightWheel.setMotorPower(0);
 }
 
@@ -67,11 +67,15 @@ void loop() {
           
               if (current_command.key == "start") {
                  Serial.println("Start the hub-ee wheels");
+                 leftWheel.setStandbyMode(0);
+                 rightWheel.setStandbyMode(0);
                  leftWheel.setMotorPower(current_command.value.toInt());
                  rightWheel.setMotorPower(current_command.value.toInt());
               }
               else if (current_command.key == "stop") {
                  Serial.println("Stop the hub-ee wheels");
+                 leftWheel.setStandbyMode(1);
+                 rightWheel.setStandbyMode(1);
                  leftWheel.setMotorPower(0);
                  rightWheel.setMotorPower(0);
               }
@@ -82,7 +86,7 @@ void loop() {
                  rightWheel.setMotorPower(current_command.value.toInt());
               }        
             } else {
-              Serial.println("This command is not for me!");
+              //Serial.println("This command is not for me!");
             }
             
             incomingCommand = "";

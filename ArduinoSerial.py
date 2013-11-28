@@ -51,17 +51,20 @@ class ArduinoController(object):
 		The command must be a '\n' terminated.
 		'''
 		command = "uid=%s;key=%s;value=%s;\n" % (self.uid, key, value)
-		print command
+		#print command
 		self.write_serial_string(command)
 
 	def write_serial_string(self, string):
+		print string
 		for i in list(string):
 			print i
+			print i
 			self.commander.write(i)
+			time.sleep(0.001)
 
 def main():
 	
-	ser = serial.Serial('COM3', baudrate=38400)
+	ser = serial.Serial('COM6', baudrate=38400)
 
 	firstUnit = ArduinoController(ser, '1111')
 	secondUnit = ArduinoController(ser, '2222')
@@ -69,7 +72,7 @@ def main():
 	forthUnit = ArduinoController(ser, '4444')
 	fifthUnit = ArduinoController(ser, '5555')
 	
-	firstUnit.start(200)
+	firstUnit.start(180)
 	secondUnit.start(200)
 	thirdUnit.start(200)
 	forthUnit.start(200)
@@ -83,14 +86,16 @@ def main():
 	time.sleep(2)
 	
 	firstUnit.stop()
-	firstUnit.setSpeedRight(-255)
-	firstUnit.setSpeedLeft(255)
+	firstUnit.start(0)
+	firstUnit.setSpeedRight(-200)
+	firstUnit.setSpeedLeft(200)
 	
 	time.sleep(2)
 	
-	firstUnit.stop()
-	firstUnit.setSpeedRight(255)
-	firstUnit.setSpeedLeft(-255)
+	#firstUnit.stop()
+	#firstUnit.start(0)
+	firstUnit.setSpeedRight(200)
+	firstUnit.setSpeedLeft(-200)
 	
 	time.sleep(2)
 	
@@ -100,6 +105,7 @@ def main():
 	forthUnit.stop()
 	fifthUnit.stop()
 	
+	ser.close()
 
 if __name__ == '__main__':
 	main()
