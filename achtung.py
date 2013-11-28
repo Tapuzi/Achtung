@@ -438,9 +438,7 @@ class WebCam(object):
                     maxContourArea = cntArea
                     maxCnt = cnt
                     maxApprox = approx
-                    
-                    
-                    
+
             if maxContourArea != MINIMUM_BORDER_SIZE and maxApprox > 0:
                 print self.rectify(maxApprox) # if no frame found -> stay with last borders
                 return self.rectify(maxApprox) # if no frame found -> stay with last borders
@@ -535,7 +533,8 @@ class WebCam(object):
         return cropedFrame, topX, topY
 
 class Player:
-    def __init__(self, game_surface, color, controller):
+    def __init__(self, game_surface, color, controller, use_robot):
+        self.use_robot = use_robot
         self.game_surface = game_surface
         self.surface = pygame.Surface((PLAYER_DIAMETER, PLAYER_DIAMETER), flags=pygame.SRCALPHA)
         self.color = color
@@ -559,7 +558,7 @@ class Player:
         self.creating_hole = False
         self.resetTimeToNextHole()
         self.score = 0
-        if USE_ROBOTS:
+        if self.use_robot:
             self.ser = serial.Serial(XBEE_COMPORT, baudrate=38400)
             self.arduino = ArduinoController(self.ser, self.color.robot_name)
             self.robot_controller = RobotController(self.arduino)
@@ -577,18 +576,18 @@ class Player:
         self.should_reverse_direction = False
 
     def go(self):
-        if USE_ROBOTS:
+        if self.use_robot:
             self.robot_controller.go()
         self.setSpeed(DEFAULT_ROBOT_SPEED, DEFAULT_MOVEMENT_SPEED)
 
     def stop(self):
         self.setSpeed(0)
-        if USE_ROBOTS:
+        if self.use_robot:
             self.robot_controller.stop()
 
     def setSpeed(self, robot_speed, movement_speed=0):
         self.robot_speed = robot_speed
-        if USE_ROBOTS:
+        if self.use_robot:
             self.robot_controller.speed = robot_speed
         if DEBUG_SIMULATE_MOTION:
             self.movement_speed = movement_speed
@@ -673,7 +672,7 @@ class Player:
 
     def updateDirection(self):
         self.direction = self.controller.getDirection()
-        if USE_ROBOTS:
+        if self.use_robot:
             self.robot_controller.direction = self.direction
 
         if self.should_reverse_direction:
@@ -765,7 +764,8 @@ class Game:
         self.menu_select_sound = pygame.mixer.Sound(SOUND_FILE_NAMES_TO_FILES['menuselect.wav'])
 
         controllers = getDefaultControllers(PLAYERS_COUNT) # Note: changed this. removed self.controllers, which was unused. If it shall be used, a good version of it will be a "getControllers" method which dinamically updates the controllers.
-        self.players = [Player(self.game_surface, color, controller) for color, controller in zip(COLORS, controllers)]
+        robots_usage = [True]*NUMBER_OF_ROBOTS_TO_USE + [False]*(PLAYERS_COUNT - NUMBER_OF_ROBOTS_TO_USE)
+        self.players = [Player(self.game_surface, color, controller, use_robot) for color, controller, use_robot in zip(COLORS, controllers, robots_usage)]
         self.players_alive = self.players[:]
 
         # Set menus
@@ -977,7 +977,7 @@ class Game:
 
                     for player in self.players_alive[:]:
                         player.updateDirection()
-                        if USE_ROBOTS:
+                        if player.use_robot:
                             player.robot_controller.updateRobotMovement()
                         player.tick(tick_duration)
                         try:
@@ -1158,8 +1158,8 @@ def main():
     try:
         game.start()
     finally:
-        if USE_ROBOTS:
-            for player in game.players:
+        for player in game.players:
+            if player.use_robot:
                 player.ser.close()
         del game.players
         del game
